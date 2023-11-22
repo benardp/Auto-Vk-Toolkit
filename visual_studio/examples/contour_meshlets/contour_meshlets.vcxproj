@@ -15,33 +15,44 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\examples\multiple_queues\source\multiple_queues.cpp" />
-    <ClCompile Include="cg_stdafx.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Publish_Vulkan|x64'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">Create</PrecompiledHeader>
-    </ClCompile>
+    <ClCompile Include="..\..\..\examples\contour_meshlets\source\contour_meshlets.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="cg_stdafx.hpp" />
-    <ClInclude Include="cg_targetver.hpp" />
+    <ClInclude Include="..\..\..\examples\contour_meshlets\shaders\cpu_gpu_shared_config.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\examples\multiple_queues\shaders\color.frag" />
-    <None Include="..\..\..\examples\multiple_queues\shaders\passthrough.vert" />
+    <None Include="..\..\..\assets\3rd_party\models\dancing_crab\crab.fbx" />
+    <None Include="..\..\..\examples\contour_meshlets\shaders\diffuse_shading_fixed_lightsource.frag" />
+    <None Include="..\..\..\examples\contour_meshlets\shaders\glsl_helpers.glsl" />
+    <None Include="..\..\..\examples\contour_meshlets\shaders\meshlet.mesh" />
+    <None Include="..\..\..\examples\contour_meshlets\shaders\meshlet.nv.mesh" />
+    <None Include="..\..\..\examples\contour_meshlets\shaders\meshlet.nv.task" />
+    <None Include="..\..\..\examples\contour_meshlets\shaders\meshlet.task" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\..\..\assets\3rd_party\models\dancing_crab\Ambient Occlusion Map from Mesh initialShadingGroup.png" />
+    <Image Include="..\..\..\assets\3rd_party\models\dancing_crab\FullyAssembled_initialShadingGroup_Diffuse.jpg" />
+    <Image Include="..\..\..\assets\3rd_party\models\dancing_crab\FullyAssembled_initialShadingGroup_Glossiness.jpg" />
+    <Image Include="..\..\..\assets\3rd_party\models\dancing_crab\FullyAssembled_initialShadingGroup_Normal.jpg" />
+    <Image Include="..\..\..\assets\3rd_party\models\dancing_crab\FullyAssembled_initialShadingGroup_Specular.jpg" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\auto_vk_toolkit\auto_vk_toolkit.vcxproj">
       <Project>{602f842f-50c1-466d-8696-1707937d8ab9}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\assets\3rd_party\models\stanford_bunny\stanford_bunny.obj">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{3CD62905-610C-4EA1-A378-E1DFE6A6871C}</ProjectGuid>
+    <ProjectGuid>{b2385ff0-700a-46f8-90a7-3682d2aac7cf}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>multiplequeues</RootNamespace>
+    <RootNamespace>contourmeshlets</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>multiple_queues</ProjectName>
+    <ProjectName>contour_meshlets</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'" Label="Configuration">
@@ -111,7 +122,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">
     <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -120,7 +131,8 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <ForcedIncludeFiles>cg_stdafx.hpp</ForcedIncludeFiles>
+      <ForcedIncludeFiles>
+      </ForcedIncludeFiles>
       <TreatSpecificWarningsAsErrors>4715</TreatSpecificWarningsAsErrors>
       <PrecompiledHeaderFile>cg_stdafx.hpp</PrecompiledHeaderFile>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
@@ -138,7 +150,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Publish_Vulkan|x64'">
     <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -147,9 +159,11 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <ForcedIncludeFiles>cg_stdafx.hpp</ForcedIncludeFiles>
+      <ForcedIncludeFiles>
+      </ForcedIncludeFiles>
       <TreatSpecificWarningsAsErrors>4715</TreatSpecificWarningsAsErrors>
       <PrecompiledHeaderFile>cg_stdafx.hpp</PrecompiledHeaderFile>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -164,16 +178,18 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">
     <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>false</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <ForcedIncludeFiles>cg_stdafx.hpp</ForcedIncludeFiles>
+      <ForcedIncludeFiles>
+      </ForcedIncludeFiles>
       <TreatSpecificWarningsAsErrors>4715</TreatSpecificWarningsAsErrors>
       <PrecompiledHeaderFile>cg_stdafx.hpp</PrecompiledHeaderFile>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

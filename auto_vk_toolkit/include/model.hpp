@@ -381,6 +381,11 @@ namespace avk
 		 *	@param	aMeshIndices				Vector of mesh indices to meshes which shall be included in the animation.
 		 */
 		animation prepare_animation(uint32_t aAnimationIndex, const std::vector<mesh_index_t>& aMeshIndices);
+
+		bool has_animations() {
+			assert(mScene);
+			return mScene->HasAnimations();
+		}
 		
 	private:
 		void initialize_materials();

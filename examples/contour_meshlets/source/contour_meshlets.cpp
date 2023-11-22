@@ -107,6 +107,7 @@ class skinned_meshlets_app : public avk::invokee
 		uint32_t mMaterialIndex;
 		uint32_t mTexelBufferIndex;
 		uint32_t mModelIndex;
+		bool mAnimated;
 
 #if !USE_REDIRECTED_GPU_DATA
 		avk::meshlet_gpu_data<sNumVertices, sNumIndices> mGeometry;
@@ -202,14 +203,16 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		glm::mat4 globalTransform = glm::rotate(glm::radians(180.f), glm::vec3(0.f, 1.f, 0.f)) * glm::scale(glm::vec3(1.f));
 		std::vector<avk::model> loadedModels;
 		// Load a model from file:
-		auto model = avk::model_t::load_from_file("assets/crab.fbx", aiProcess_Triangulate);
+		//auto model = avk::model_t::load_from_file("assets/crab.fbx", aiProcess_Triangulate);
+		//loadedModels.push_back(std::move(model));
 
+		auto model = avk::model_t::load_from_file("assets/stanford_bunny.obj", aiProcess_Triangulate | aiProcess_PreTransformVertices);
 		loadedModels.push_back(std::move(model));
 
 		std::vector<avk::material_config> allMatConfigs; // <-- Gather the material config from all models to be loaded
 		std::vector<loaded_data_for_draw_call> dataForDrawCall;
 		std::vector<meshlet> meshletsGeometry;
-		std::vector<animated_model_data> animatedModels;
+		std::vector<animated_model_data> animatedModels;		
 
 		// Crab-specific animation config: (Needs to be adapted for other models)
 		const uint32_t cAnimationIndex = 0;
@@ -221,103 +224,185 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		for (size_t i = 0; i < loadedModels.size(); ++i) {
 			auto curModel = std::move(loadedModels[i]);
 
-			// load the animation
-			auto curClip = curModel->load_animation_clip(cAnimationIndex, cStartTimeTicks, cEndTimeTicks);
-			curClip.mTicksPerSecond = cTicksPerSecond;
-			auto& curEntry = animatedModels.emplace_back();
-			curEntry.mModelName = curModel->path();
-			curEntry.mClip = curClip;
+			if (curModel->has_animations()) {
 
-			// get all the meshlet indices of the model
-			const auto meshIndicesInOrder = curModel->select_all_meshes();
+				// load the animation
+				auto curClip = curModel->load_animation_clip(cAnimationIndex, cStartTimeTicks, cEndTimeTicks);
+				curClip.mTicksPerSecond = cTicksPerSecond;
+				auto& curEntry = animatedModels.emplace_back();
+				curEntry.mModelName = curModel->path();
+				curEntry.mClip = curClip;
 
-			curEntry.mNumBoneMatrices = curModel->num_bone_matrices(meshIndicesInOrder);
+				// get all the meshlet indices of the model
+				const auto meshIndicesInOrder = curModel->select_all_meshes();
 
-			// Store offset into the vector of buffers that store the bone matrices
-			curEntry.mBoneMatricesBufferIndex = i;
+				curEntry.mNumBoneMatrices = curModel->num_bone_matrices(meshIndicesInOrder);
 
-			auto distinctMaterials = curModel->distinct_material_configs();
-			const auto matOffset = allMatConfigs.size();
-			// add all the materials of the model
-			for (auto& pair : distinctMaterials) {
-				allMatConfigs.push_back(pair.first);
-			}
+				// Store offset into the vector of buffers that store the bone matrices
+				curEntry.mBoneMatricesBufferIndex = i;
 
-			// prepare the animation for the current entry
-			curEntry.mAnimation = curModel->prepare_animation(curEntry.mClip.mAnimationIndex, meshIndicesInOrder);
-
-			// Generate meshlets for each submesh of the current loaded model. Load all it's data into the drawcall for later use.
-			for (size_t mpos = 0; mpos < meshIndicesInOrder.size(); mpos++) {
-				auto meshIndex = meshIndicesInOrder[mpos];
-				std::string meshname = curModel->name_of_mesh(mpos);
-
-				auto texelBufferIndex = dataForDrawCall.size();
-				auto& drawCallData = dataForDrawCall.emplace_back();
-
-				drawCallData.mMaterialIndex = static_cast<int32_t>(matOffset);
-				drawCallData.mModelMatrix = globalTransform;
-				drawCallData.mModelIndex = static_cast<uint32_t>(curEntry.mBoneMatricesBufferIndex);
-				// Find and assign the correct material (in the ~"global" allMatConfigs vector!)
-				for (auto pair : distinctMaterials) {
-					if (std::end(pair.second) != std::find(std::begin(pair.second), std::end(pair.second), meshIndex)) {
-						break;
-					}
-
-					drawCallData.mMaterialIndex++;
+				auto distinctMaterials = curModel->distinct_material_configs();
+				const auto matOffset = allMatConfigs.size();
+				// add all the materials of the model
+				for (auto& pair : distinctMaterials) {
+					allMatConfigs.push_back(pair.first);
 				}
 
-				auto selection = avk::make_model_references_and_mesh_indices_selection(curModel, meshIndex);
-				std::vector<avk::mesh_index_t> meshIndices;
-				meshIndices.push_back(meshIndex);
-				// Build meshlets:
-				std::tie(drawCallData.mPositions, drawCallData.mIndices) = avk::get_vertices_and_indices(selection);
-				drawCallData.mNormals = avk::get_normals(selection);
-				drawCallData.mTexCoords = avk::get_2d_texture_coordinates(selection, 0);
-				// Get bone indices and weights too
-				drawCallData.mBoneIndices = avk::get_bone_indices_for_single_target_buffer(selection, meshIndicesInOrder);
-				drawCallData.mBoneWeights = avk::get_bone_weights(selection);
+				// prepare the animation for the current entry
+				curEntry.mAnimation = curModel->prepare_animation(curEntry.mClip.mAnimationIndex, meshIndicesInOrder);
 
-				// create selection for the meshlets
-				auto meshletSelection = avk::make_models_and_mesh_indices_selection(curModel, meshIndex);
+				// Generate meshlets for each submesh of the current loaded model. Load all it's data into the drawcall for later use.
+				for (size_t mpos = 0; mpos < meshIndicesInOrder.size(); mpos++) {
+					auto meshIndex = meshIndicesInOrder[mpos];
+					std::string meshname = curModel->name_of_mesh(mpos);
 
-				auto cpuMeshlets = avk::divide_into_meshlets(meshletSelection);
+					auto texelBufferIndex = dataForDrawCall.size();
+					auto& drawCallData = dataForDrawCall.emplace_back();
+
+					drawCallData.mMaterialIndex = static_cast<int32_t>(matOffset);
+					drawCallData.mModelMatrix = globalTransform;
+					drawCallData.mModelIndex = static_cast<uint32_t>(curEntry.mBoneMatricesBufferIndex);
+					// Find and assign the correct material (in the ~"global" allMatConfigs vector!)
+					for (auto pair : distinctMaterials) {
+						if (std::end(pair.second) != std::find(std::begin(pair.second), std::end(pair.second), meshIndex)) {
+							break;
+						}
+
+						drawCallData.mMaterialIndex++;
+					}
+
+					auto selection = avk::make_model_references_and_mesh_indices_selection(curModel, meshIndex);
+					std::vector<avk::mesh_index_t> meshIndices;
+					meshIndices.push_back(meshIndex);
+					// Build meshlets:
+					std::tie(drawCallData.mPositions, drawCallData.mIndices) = avk::get_vertices_and_indices(selection);
+					drawCallData.mNormals = avk::get_normals(selection);
+					drawCallData.mTexCoords = avk::get_2d_texture_coordinates(selection, 0);
+					// Get bone indices and weights too
+					drawCallData.mBoneIndices = avk::get_bone_indices_for_single_target_buffer(selection, meshIndicesInOrder);
+					drawCallData.mBoneWeights = avk::get_bone_weights(selection);
+
+					// create selection for the meshlets
+					auto meshletSelection = avk::make_models_and_mesh_indices_selection(curModel, meshIndex);
+
+					auto cpuMeshlets = avk::divide_into_meshlets(meshletSelection);
 #if !USE_REDIRECTED_GPU_DATA
 #if USE_CACHE
-				avk::serializer serializer("direct_meshlets-" + meshname + "-" + std::to_string(mpos) + ".cache");
-				auto [gpuMeshlets, _] = avk::convert_for_gpu_usage_cached<avk::meshlet_gpu_data<sNumVertices, sNumIndices>>(serializer, cpuMeshlets);
+					avk::serializer serializer("direct_meshlets-" + meshname + "-" + std::to_string(mpos) + ".cache");
+					auto [gpuMeshlets, _] = avk::convert_for_gpu_usage_cached<avk::meshlet_gpu_data<sNumVertices, sNumIndices>>(serializer, cpuMeshlets);
 #else
-				auto [gpuMeshlets, _] = avk::convert_for_gpu_usage<avk::meshlet_gpu_data<sNumVertices, sNumIndices>, sNumVertices, sNumIndices>(cpuMeshlets);
+					auto [gpuMeshlets, _] = avk::convert_for_gpu_usage<avk::meshlet_gpu_data<sNumVertices, sNumIndices>, sNumVertices, sNumIndices>(cpuMeshlets);
 #endif
 #else
 #if USE_CACHE
-				avk::serializer serializer("redirected_meshlets-" + meshname + "-" + std::to_string(mpos) + ".cache");
-				auto [gpuMeshlets, gpuIndicesData] = avk::convert_for_gpu_usage_cached<avk::meshlet_redirected_gpu_data, sNumVertices, sNumIndices>(serializer, cpuMeshlets);
+					avk::serializer serializer("redirected_meshlets-" + meshname + "-" + std::to_string(mpos) + ".cache");
+					auto [gpuMeshlets, gpuIndicesData] = avk::convert_for_gpu_usage_cached<avk::meshlet_redirected_gpu_data, sNumVertices, sNumIndices>(serializer, cpuMeshlets);
 #else
-				auto [gpuMeshlets, gpuIndicesData] = avk::convert_for_gpu_usage<avk::meshlet_redirected_gpu_data, sNumVertices, sNumIndices>(cpuMeshlets);
+					auto [gpuMeshlets, gpuIndicesData] = avk::convert_for_gpu_usage<avk::meshlet_redirected_gpu_data, sNumVertices, sNumIndices>(cpuMeshlets);
 #endif
-				drawCallData.mIndicesData = std::move(gpuIndicesData.value());
+					drawCallData.mIndicesData = std::move(gpuIndicesData.value());
 #endif
 
-				// fill our own meshlets with the loaded/generated data
-				for (size_t mshltidx = 0; mshltidx < gpuMeshlets.size(); ++mshltidx) {
-					auto& genMeshlet = gpuMeshlets[mshltidx];
+					// fill our own meshlets with the loaded/generated data
+					for (size_t mshltidx = 0; mshltidx < gpuMeshlets.size(); ++mshltidx) {
+						auto& genMeshlet = gpuMeshlets[mshltidx];
 
-					auto& ml = meshletsGeometry.emplace_back(meshlet{});
+						auto& ml = meshletsGeometry.emplace_back(meshlet{});
 
 #pragma region start to assemble meshlet struct
-					ml.mTransformationMatrix = drawCallData.mModelMatrix;
-					ml.mMaterialIndex = drawCallData.mMaterialIndex;
-					ml.mTexelBufferIndex = static_cast<uint32_t>(texelBufferIndex);
-					ml.mModelIndex = static_cast<uint32_t>(curEntry.mBoneMatricesBufferIndex);
+						ml.mTransformationMatrix = drawCallData.mModelMatrix;
+						ml.mMaterialIndex = drawCallData.mMaterialIndex;
+						ml.mTexelBufferIndex = static_cast<uint32_t>(texelBufferIndex);
+						ml.mModelIndex = static_cast<uint32_t>(curEntry.mBoneMatricesBufferIndex);
 
-					ml.mGeometry = genMeshlet;
+						ml.mGeometry = genMeshlet;
+						ml.mAnimated = true;
 #pragma endregion 
+					}
+				}
+			}
+			else // without animation
+			{ 
+
+				// get all the meshlet indices of the model
+				const auto meshIndicesInOrder = curModel->select_all_meshes();
+
+				auto distinctMaterials = curModel->distinct_material_configs();
+				const auto matOffset = allMatConfigs.size();
+				// add all the materials of the model
+				for (auto& pair : distinctMaterials) {
+					allMatConfigs.push_back(pair.first);
+				}
+
+				// Generate meshlets for each submesh of the current loaded model. Load all it's data into the draw call for later use.
+				for (size_t mpos = 0; mpos < meshIndicesInOrder.size(); mpos++) {
+					auto meshIndex = meshIndicesInOrder[mpos];
+					std::string meshname = curModel->name_of_mesh(mpos);
+
+					auto texelBufferIndex = dataForDrawCall.size();
+					auto& drawCallData = dataForDrawCall.emplace_back();
+
+					drawCallData.mMaterialIndex = static_cast<int32_t>(matOffset);
+					drawCallData.mModelMatrix = globalTransform * curModel->transformation_matrix_for_mesh(meshIndex);
+					// Find and assign the correct material in the allMatConfigs vector
+					for (auto pair : distinctMaterials) {
+						if (std::end(pair.second) != std::ranges::find(pair.second, meshIndex)) {
+							break;
+						}
+						drawCallData.mMaterialIndex++;
+					}
+
+					auto selection = avk::make_model_references_and_mesh_indices_selection(curModel, meshIndex);
+					// Build meshlets:
+					std::tie(drawCallData.mPositions, drawCallData.mIndices) = avk::get_vertices_and_indices(selection);
+					drawCallData.mNormals = avk::get_normals(selection);
+					drawCallData.mTexCoords = avk::get_2d_texture_coordinates(selection, 0);
+					// Empty bone indices and weights too
+					drawCallData.mBoneIndices.resize(drawCallData.mPositions.size());
+					drawCallData.mBoneWeights.resize(drawCallData.mPositions.size()) ;
+
+					// create selection for the meshlets
+					auto meshletSelection = avk::make_models_and_mesh_indices_selection(curModel, meshIndex);
+
+					auto cpuMeshlets = avk::divide_into_meshlets(meshletSelection);
+#if !USE_REDIRECTED_GPU_DATA
+#if USE_CACHE
+					avk::serializer serializer("direct_meshlets-" + meshname + "-" + std::to_string(mpos) + ".cache");
+					auto [gpuMeshlets, _] = avk::convert_for_gpu_usage_cached<avk::meshlet_gpu_data<sNumVertices, sNumIndices>>(serializer, cpuMeshlets);
+#else
+					auto [gpuMeshlets, _] = avk::convert_for_gpu_usage<avk::meshlet_gpu_data<sNumVertices, sNumIndices>, sNumVertices, sNumIndices>(cpuMeshlets);
+#endif
+#else
+#if USE_CACHE
+					avk::serializer serializer("redirected_meshlets-" + meshname + "-" + std::to_string(mpos) + ".cache");
+					auto [gpuMeshlets, gpuIndicesData] = avk::convert_for_gpu_usage_cached<avk::meshlet_redirected_gpu_data, sNumVertices, sNumIndices>(serializer, cpuMeshlets);
+#else
+					auto [gpuMeshlets, gpuIndicesData] = avk::convert_for_gpu_usage<avk::meshlet_redirected_gpu_data, sNumVertices, sNumIndices>(cpuMeshlets);
+#endif
+					drawCallData.mIndicesData = std::move(gpuIndicesData.value());
+#endif
+
+					// fill our own meshlets with the loaded/generated data
+					for (size_t mshltidx = 0; mshltidx < gpuMeshlets.size(); ++mshltidx) {
+						auto& genMeshlet = gpuMeshlets[mshltidx];
+
+						auto& ml = meshletsGeometry.emplace_back(meshlet{});
+
+#pragma region start to assemble meshlet struct
+						ml.mTransformationMatrix = drawCallData.mModelMatrix;
+						ml.mMaterialIndex = drawCallData.mMaterialIndex;
+						ml.mTexelBufferIndex = static_cast<uint32_t>(texelBufferIndex);
+
+						ml.mGeometry = genMeshlet;
+						ml.mAnimated = false;
+#pragma endregion 
+					}
 				}
 			}
 		} // for (size_t i = 0; i < loadedModels.size(); ++i)
 
 		// create buffers for animation data
-		for (size_t i = 0; i < loadedModels.size(); ++i) {
+		for (size_t i = 0; i < animatedModels.size(); ++i) {
 			auto& animModel = mAnimatedModels.emplace_back(std::move(animatedModels[i]), additional_animated_model_data{});
 
 			// buffers for the animated bone matrices, will be populated before rendering
@@ -329,6 +414,17 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				));
 			}
 		}
+		std::vector<glm::mat4> identity;
+		identity.push_back(glm::mat4());
+		for (size_t i = 0; i < loadedModels.size() - animatedModels.size(); ++i) {
+			for (size_t cfi = 0; cfi < cConcurrentFrames; ++cfi) {
+				mBoneMatricesBuffersAni[cfi].push_back(avk::context().create_buffer(
+					avk::memory_usage::host_coherent, {},
+					avk::storage_buffer_meta::create_from_data(identity)
+				));
+			}
+		}
+
 		// create all the buffers for our drawcall data
 		add_draw_calls(dataForDrawCall, mDrawCalls);
 
