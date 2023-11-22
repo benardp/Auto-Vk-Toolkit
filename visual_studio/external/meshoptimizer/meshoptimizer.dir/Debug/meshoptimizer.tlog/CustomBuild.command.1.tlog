@@ -1,0 +1,10 @@
+^F:\PIERRE\RECHERCHE\AUTO-VK-TOOLKIT\EXTERNAL\MESHOPTIMIZER\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SF:/Pierre/Recherche/Auto-Vk-Toolkit/external/meshoptimizer -BF:/Pierre/Recherche/Auto-Vk-Toolkit/visual_studio/external/meshoptimizer --check-stamp-file F:/Pierre/Recherche/Auto-Vk-Toolkit/visual_studio/external/meshoptimizer/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

@@ -19,6 +19,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\examples\contour_meshlets\shaders\cpu_gpu_shared_config.h" />
+    <None Include="..\..\..\examples\contour_meshlets\shaders\mesh.glsl">
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\assets\3rd_party\models\dancing_crab\crab.fbx" />
@@ -39,6 +42,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\auto_vk_toolkit\auto_vk_toolkit.vcxproj">
       <Project>{602f842f-50c1-466d-8696-1707937d8ab9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\external\meshoptimizer\meshoptimizer.vcxproj">
+      <Project>{2a9e6d79-0edf-40b4-aa1f-66ea70ac5f72}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
@@ -136,6 +142,8 @@
       <TreatSpecificWarningsAsErrors>4715</TreatSpecificWarningsAsErrors>
       <PrecompiledHeaderFile>cg_stdafx.hpp</PrecompiledHeaderFile>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+      <AdditionalIncludeDirectories>$(AutoVkRoot)..\external\meshoptimizer\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -164,6 +172,8 @@
       <TreatSpecificWarningsAsErrors>4715</TreatSpecificWarningsAsErrors>
       <PrecompiledHeaderFile>cg_stdafx.hpp</PrecompiledHeaderFile>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+      <AdditionalIncludeDirectories>$(AutoVkRoot)..\external\meshoptimizer\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -190,6 +200,8 @@
       <TreatSpecificWarningsAsErrors>4715</TreatSpecificWarningsAsErrors>
       <PrecompiledHeaderFile>cg_stdafx.hpp</PrecompiledHeaderFile>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+      <AdditionalIncludeDirectories>$(AutoVkRoot)..\external\meshoptimizer\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

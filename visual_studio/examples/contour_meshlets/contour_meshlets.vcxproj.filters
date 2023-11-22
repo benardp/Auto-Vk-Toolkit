@@ -40,6 +40,9 @@
     <None Include="..\..\..\assets\3rd_party\models\stanford_bunny\stanford_bunny.obj">
       <Filter>assets</Filter>
     </None>
+    <None Include="..\..\..\examples\contour_meshlets\shaders\mesh.glsl">
+      <Filter>shared</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\..\..\assets\3rd_party\models\dancing_crab\Ambient Occlusion Map from Mesh initialShadingGroup.png">

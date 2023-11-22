@@ -9,6 +9,7 @@
 #extension GL_KHR_shader_subgroup_ballot     : require
 #include "cpu_gpu_shared_config.h"
 #include "glsl_helpers.glsl"
+#include "mesh.glsl"
 
 layout (constant_id = 0) const uint NUM_TASK_SHADER_INVOCATIONS = 1; // <- Expected to be set to 32 for Nvidia on host side.
 //           ^  same as  v 
@@ -22,12 +23,18 @@ layout(push_constant) uniform PushConstants {
 	int  mVisibleMeshletIndexTo;  
 } pushConstants;
 
+layout(set = 4, binding = 0) buffer MeshletsBuffer { extended_meshlet mValues[]; } meshletsBuffer;
+
 void main() 
 {
 	// Calculate and set the meshlet index for this execution:
 	uint groupId      = gl_WorkGroupID.x;
 	uint invocationId = gl_LocalInvocationID.x;
 	uint meshletIndex = groupId * NUM_TASK_SHADER_INVOCATIONS + invocationId;
+
+	vec3 axis = meshletsBuffer.mValues[meshletIndex].coneAxis;
+	float cutOf = meshletsBuffer.mValues[meshletIndex].coneCutoff;
+	float radius = meshletsBuffer.mValues[meshletIndex].radius;
 
 	// See if this meshlet shall be rendered, and if so, add it to the array:
 	bool meshletVisible = meshletIndex >= pushConstants.mVisibleMeshletIndexFrom && meshletIndex < pushConstants.mVisibleMeshletIndexTo;

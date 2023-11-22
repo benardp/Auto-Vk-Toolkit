@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="F:\Pierre\Recherche\Auto-Vk-Toolkit\visual_studio\external\meshoptimizer\CMakeFiles\7dc450462f4b4b41353803365479e463\INSTALL_force.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{4EE4E970-B874-3E2A-9B7B-BE8C6B82AEEB}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

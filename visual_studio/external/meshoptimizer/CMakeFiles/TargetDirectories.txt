@@ -1,0 +1,4 @@
+F:/Pierre/Recherche/Auto-Vk-Toolkit/visual_studio/external/meshoptimizer/CMakeFiles/meshoptimizer.dir
+F:/Pierre/Recherche/Auto-Vk-Toolkit/visual_studio/external/meshoptimizer/CMakeFiles/INSTALL.dir
+F:/Pierre/Recherche/Auto-Vk-Toolkit/visual_studio/external/meshoptimizer/CMakeFiles/ALL_BUILD.dir
+F:/Pierre/Recherche/Auto-Vk-Toolkit/visual_studio/external/meshoptimizer/CMakeFiles/ZERO_CHECK.dir

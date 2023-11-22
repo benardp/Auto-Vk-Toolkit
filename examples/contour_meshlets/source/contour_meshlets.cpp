@@ -11,6 +11,8 @@
 #include "orbit_camera.hpp"
 #include "quake_camera.hpp"
 #include "sequential_invoker.hpp"
+#include "meshoptimizer.h"
+
 /**
  *	Please note: This example can provide the geometry data in two different formats:
  *	 - USE_REDIRECTED_GPU_DATA 0 ...
@@ -20,10 +22,10 @@
 #include "../shaders/cpu_gpu_shared_config.h"
 #include "vk_convenience_functions.hpp"
 
-#define USE_CACHE 1
+#define USE_CACHE 0
 
 static constexpr size_t sNumVertices = 64;
-static constexpr size_t sNumIndices = 378;
+static constexpr size_t sNumIndices = 372;
 static constexpr uint32_t cConcurrentFrames = 3u;
 
 class skinned_meshlets_app : public avk::invokee
@@ -107,7 +109,12 @@ class skinned_meshlets_app : public avk::invokee
 		uint32_t mMaterialIndex;
 		uint32_t mTexelBufferIndex;
 		uint32_t mModelIndex;
+		
 		bool mAnimated;
+
+		glm::vec3 coneAxis;
+		float coneCutoff;
+		float radius;
 
 #if !USE_REDIRECTED_GPU_DATA
 		avk::meshlet_gpu_data<sNumVertices, sNumIndices> mGeometry;
@@ -364,7 +371,49 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					// create selection for the meshlets
 					auto meshletSelection = avk::make_models_and_mesh_indices_selection(curModel, meshIndex);
 
-					auto cpuMeshlets = avk::divide_into_meshlets(meshletSelection);
+					auto cpuMeshlets = avk::divide_into_meshlets(meshletSelection, 
+						[](const std::vector<glm::vec3>& tVertices, const std::vector<uint32_t>& aIndices,
+							const avk::model_t& aModel, std::optional<avk::mesh_index_t> aMeshIndex,
+							uint32_t aMaxVertices, uint32_t aMaxIndices) {
+
+								// definitions
+								size_t max_triangles = aMaxIndices / 3;
+								const float cone_weight = 0.0f;
+
+								// get the maximum number of meshlets that could be generated
+								size_t max_meshlets = meshopt_buildMeshletsBound(aIndices.size(), aMaxVertices, max_triangles);
+								std::vector<meshopt_Meshlet> meshlets(max_meshlets);
+								std::vector<unsigned int> meshlet_vertices(max_meshlets * aMaxVertices);
+								std::vector<unsigned char> meshlet_triangles(max_meshlets * max_triangles * 3);
+
+								// let meshoptimizer build the meshlets for us
+								size_t meshlet_count = meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(),
+									aIndices.data(), aIndices.size(), &tVertices[0].x, tVertices.size(), sizeof(glm::vec3),
+									aMaxVertices, max_triangles, cone_weight);
+
+								// copy the data over to Auto-Vk-Toolkit's meshlet structure
+								std::vector<avk::meshlet> generatedMeshlets(meshlet_count);
+								generatedMeshlets.resize(meshlet_count);
+								generatedMeshlets.reserve(meshlet_count);
+								for (int k = 0; k < meshlet_count; k++) {
+									auto& m = meshlets[k];
+									auto& gm = generatedMeshlets[k];
+									gm.mIndexCount = m.triangle_count * 3;
+									gm.mVertexCount = m.vertex_count;
+									gm.mVertices.reserve(m.vertex_count);
+									gm.mVertices.resize(m.vertex_count);
+									gm.mIndices.reserve(gm.mIndexCount);
+									gm.mIndices.resize(gm.mIndexCount);
+									std::ranges::copy(meshlet_vertices.begin() + m.vertex_offset,
+										meshlet_vertices.begin() + m.vertex_offset + m.vertex_count,
+										gm.mVertices.begin());
+									std::ranges::copy(meshlet_triangles.begin() + m.triangle_offset,
+										meshlet_triangles.begin() + m.triangle_offset + gm.mIndexCount,
+										gm.mIndices.begin());
+								}
+
+								return generatedMeshlets;
+						}, true, 64, 372);
 #if !USE_REDIRECTED_GPU_DATA
 #if USE_CACHE
 					avk::serializer serializer("direct_meshlets-" + meshname + "-" + std::to_string(mpos) + ".cache");
