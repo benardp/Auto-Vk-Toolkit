@@ -14,12 +14,21 @@ layout (constant_id = 0) const uint NUM_TASK_SHADER_INVOCATIONS = 1; // <- Expec
 layout (constant_id = 1) const uint NUM_MESH_SHADER_INVOCATIONS = 1; // <- Expected to be set to 32 for Nvidia on host side.
 layout(local_size_x_id = 1, local_size_y = 1, local_size_z = 1) in;
 // The max_vertices and max_primitives numbers have been recommended by Nvidia:
-// layout(lines, max_vertices = 64, max_primitives = 126) out;
-layout(triangles, max_vertices = 64, max_primitives = 126) out;
+layout(lines, max_vertices = 64, max_primitives = 126) out;
+//layout(triangles, max_vertices = 64, max_primitives = 126) out;
+
+layout(push_constant) uniform PushConstants {
+	bool mHighlightMeshlets;
+	bool mCull;
+	bool mContours;
+	int  mVisibleMeshletIndexFrom;
+	int  mVisibleMeshletIndexTo;  
+} pushConstants;
 
 layout(set = 0, binding = 1) uniform CameraTransform
 {
 	mat4 mViewProjMatrix;
+	vec3 mCameraCenter;
 } ubo;
 
 taskPayloadSharedEXT uint meshletIndices[NUM_TASK_SHADER_INVOCATIONS];
@@ -78,6 +87,8 @@ uint hash(uint a)
    return a;
 }
 
+shared vec3 vertexPos[64]; // TODO: this is the # of vertices per meshlet and should be tuned in sync with 64 at top of shader
+
 //////////////////////////////////////////////////////////////////////
 // Mesh Shader Main:
 void main() 
@@ -90,7 +101,7 @@ void main()
 
 	// Get all the meshlet data:
 	uint vertexCount          = uint(meshletsBuffer.mValues[meshletIndex].mGeometry.mVertexCount);
-	uint triangleCount        = uint(meshletsBuffer.mValues[meshletIndex].mGeometry.mTriangleCount);
+	uint edgeCount            = uint(meshletsBuffer.mValues[meshletIndex].mGeometry.mTriangleCount);
 	uint materialIndex        = meshletsBuffer.mValues[meshletIndex].mMaterialIndex;
 	mat4 transformationMatrix = meshletsBuffer.mValues[meshletIndex].mTransformationMatrix;
 
@@ -103,6 +114,17 @@ void main()
 #endif
 	
 	bool animated =  meshletsBuffer.mValues[meshletIndex].mAnimated;
+
+	// Sets the actual output size of the primitives and vertices that the 
+	// mesh shader workgroup will emit upon completion:
+	SetMeshOutputsEXT(vertexCount, edgeCount);
+	// ^ Note: This is the correct way and place to call SetMeshOutputsEXT, as the spec says:
+	// 
+	// > The arguments are taken from the first invocation in each workgroup. 
+	// > Any invocation must execute this instruction no more than once and 
+	// > under uniform control flow. There must not be any control flow path 
+	// > to an output write that is not preceded by this instruction.
+
 
 	// Step by NUM_MESH_SHADER_INVOCATIONS as we have that many threads but potentially more vertices to calculate:
 	for (uint i = invocationId; i < vertexCount; i += NUM_MESH_SHADER_INVOCATIONS)
@@ -145,6 +167,7 @@ void main()
 		
 		// Rest of the transformation:
 		vec4 posWS = transformationMatrix * aniPos;
+		vertexPos[i] = posWS.xyz;
 		vec4 posCS = ubo.mViewProjMatrix * posWS;
  
 		// Set the vertex position:
@@ -158,37 +181,58 @@ void main()
 		v_out[i].color = meshletcolors[meshletIndex % MAX_COLORS];
 	}
  
-	// Sets the actual output size of the primitives and vertices that the 
-	// mesh shader workgroup will emit upon completion:
-	SetMeshOutputsEXT(vertexCount, triangleCount);
-	// ^ Note: This is the correct way and place to call SetMeshOutputsEXT, as the spec says:
-	// 
-	// > The arguments are taken from the first invocation in each workgroup. 
-	// > Any invocation must execute this instruction no more than once and 
-	// > under uniform control flow. There must not be any control flow path 
-	// > to an output write that is not preceded by this instruction.
+	barrier();
  
 	// Write the indices for the vertices:
+	// Write for each triangle, also note the NUM_MESH_SHADER_INVOCATIONS stepping
+	for (uint i = invocationId; i < edgeCount; i += NUM_MESH_SHADER_INVOCATIONS)
+	{
+
+		uint a, b, c, d;
+
 #if !USE_REDIRECTED_GPU_DATA
-	// Write for each triangle, also note the NUM_MESH_SHADER_INVOCATIONS stepping
-	for (uint i = invocationId; i < triangleCount; i += NUM_MESH_SHADER_INVOCATIONS)
-	{
 		// Write the indices for the vertices:
-		gl_PrimitiveTriangleIndicesEXT[i] = uvec3(
-			meshletsBuffer.mValues[meshletIndex].mGeometry.mIndices[i * 3 + 0],
-			meshletsBuffer.mValues[meshletIndex].mGeometry.mIndices[i * 3 + 1],
-			meshletsBuffer.mValues[meshletIndex].mGeometry.mIndices[i * 3 + 2]
-		);
-	}
+//		gl_PrimitiveTriangleIndicesEXT[i] = uvec3(
+//			meshletsBuffer.mValues[meshletIndex].mGeometry.mIndices[i * 3 + 0],
+//			meshletsBuffer.mValues[meshletIndex].mGeometry.mIndices[i * 3 + 1],
+//			meshletsBuffer.mValues[meshletIndex].mGeometry.mIndices[i * 3 + 2]
+//		);
+		
+		a = uint(meshletsBuffer.mValues[meshletIndex].mGeometry.mIndices[i * 4]);
+		b = uint(meshletsBuffer.mValues[meshletIndex].mGeometry.mIndices[i * 4 + 1]);
+		c = uint(meshletsBuffer.mValues[meshletIndex].mGeometry.mIndices[i * 4 + 2]);
+		d = uint(meshletsBuffer.mValues[meshletIndex].mGeometry.mIndices[i * 4 + 3]);
+	
 #else // USE_REDIRECTED_GPU_DATA
-	// Write for each triangle, also note the NUM_MESH_SHADER_INVOCATIONS stepping
-	for (uint i = invocationId; i < triangleCount; i += NUM_MESH_SHADER_INVOCATIONS)
-	{
-		gl_PrimitiveTriangleIndicesEXT[i] = uvec3(
-			uint(indicesBuffers_u8[texelBufferIndex].mIndices[int(indexOffset*4 + i*3 + 0)]),
-			uint(indicesBuffers_u8[texelBufferIndex].mIndices[int(indexOffset*4 + i*3 + 1)]),
-			uint(indicesBuffers_u8[texelBufferIndex].mIndices[int(indexOffset*4 + i*3 + 2)])
-		);
-	}
+//		gl_PrimitiveTriangleIndicesEXT[i] = uvec3(
+//			uint(indicesBuffers_u8[texelBufferIndex].mIndices[int(indexOffset*4 + i*3 + 0)]),
+//			uint(indicesBuffers_u8[texelBufferIndex].mIndices[int(indexOffset*4 + i*3 + 1)]),
+//			uint(indicesBuffers_u8[texelBufferIndex].mIndices[int(indexOffset*4 + i*3 + 2)])
+//		);
+
+		uint offset = indexOffset * 4 + i * 4;
+		a = uint(indicesBuffers_u8[texelBufferIndex].mIndices[offset]);
+		b = uint(indicesBuffers_u8[texelBufferIndex].mIndices[offset + 1]);
+		c = uint(indicesBuffers_u8[texelBufferIndex].mIndices[offset + 2]);
+		d = uint(indicesBuffers_u8[texelBufferIndex].mIndices[offset + 3]);
 #endif
+		gl_PrimitiveLineIndicesEXT[i] = uvec2(a, b);
+
+		if (pushConstants.mContours) {
+
+			vec3 vAPos = vertexPos[a], vBPos = vertexPos[b], vCPos = vertexPos[c], vDPos = vertexPos[d];
+
+			vec3 fANormal = cross(vBPos - vAPos, vCPos - vAPos);
+			vec3 fBNormal = cross(vAPos - vBPos, vDPos - vBPos);
+
+			vec3 viewDir = (vBPos - ubo.mCameraCenter);
+
+			bool fAOrient = (dot(viewDir, fANormal) > 0);
+			bool fBOrient = (dot(viewDir, fBNormal) > 0);
+
+			gl_MeshPrimitivesEXT[i].gl_CullPrimitiveEXT = (fAOrient == fBOrient) ;
+		} else {
+			gl_MeshPrimitivesEXT[i].gl_CullPrimitiveEXT = false;
+		}
+	}
 }

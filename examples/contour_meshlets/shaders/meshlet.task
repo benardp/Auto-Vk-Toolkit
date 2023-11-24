@@ -19,9 +19,17 @@ taskPayloadSharedEXT uint meshletIndices[NUM_TASK_SHADER_INVOCATIONS];
 
 layout(push_constant) uniform PushConstants {
 	bool mHighlightMeshlets;
+	bool mCull;
+	bool mContours;
 	int  mVisibleMeshletIndexFrom;
 	int  mVisibleMeshletIndexTo;  
 } pushConstants;
+
+layout(set = 0, binding = 1) uniform CameraTransform
+{
+	mat4 mViewProjMatrix;
+	vec3 mCameraCenter;
+} ubo;
 
 layout(set = 4, binding = 0) buffer MeshletsBuffer { extended_meshlet mValues[]; } meshletsBuffer;
 
@@ -32,12 +40,19 @@ void main()
 	uint invocationId = gl_LocalInvocationID.x;
 	uint meshletIndex = groupId * NUM_TASK_SHADER_INVOCATIONS + invocationId;
 
-	vec3 axis = meshletsBuffer.mValues[meshletIndex].coneAxis;
-	float cutOf = meshletsBuffer.mValues[meshletIndex].coneCutoff;
-	float radius = meshletsBuffer.mValues[meshletIndex].radius;
-
 	// See if this meshlet shall be rendered, and if so, add it to the array:
 	bool meshletVisible = meshletIndex >= pushConstants.mVisibleMeshletIndexFrom && meshletIndex < pushConstants.mVisibleMeshletIndexTo;
+
+	if(pushConstants.mCull) {
+		mat4 transformationMatrix = meshletsBuffer.mValues[meshletIndex].mTransformationMatrix;
+		vec3 center = meshletsBuffer.mValues[meshletIndex].center;
+		float radius = meshletsBuffer.mValues[meshletIndex].radius;
+		vec3 cone_axis = meshletsBuffer.mValues[meshletIndex].coneAxis;
+		float cone_cutoff = meshletsBuffer.mValues[meshletIndex].coneCutoff;
+
+		meshletVisible = meshletVisible && !coneCull(center, radius, cone_axis, cone_cutoff, vec3(inverse(transformationMatrix) * vec4(ubo.mCameraCenter, 0)));
+	}
+
 	uint insertIndex = subgroupExclusiveAdd(uint(meshletVisible));
 	meshletIndices[insertIndex] = meshletIndex;		
 

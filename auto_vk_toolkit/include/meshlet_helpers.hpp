@@ -24,6 +24,11 @@ namespace avk
 		uint32_t mVertexCount;
 		/** The actual number of indices in mIndices; */
 		uint32_t mIndexCount;
+
+		glm::vec3 center;
+		glm::vec3 coneAxis;
+		float coneCutoff;
+		float radius;
 	};
 
 	/** Meshlet for GPU usage

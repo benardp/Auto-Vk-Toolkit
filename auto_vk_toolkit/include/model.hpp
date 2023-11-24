@@ -386,6 +386,148 @@ namespace avk
 			assert(mScene);
 			return mScene->HasAnimations();
 		}
+
+		struct Edge
+		{
+			Edge(unsigned int _a, unsigned int _b)
+			{
+				assert(_a != _b);
+
+				if (_a < _b)
+				{
+					a = _a;
+					b = _b;
+				}
+				else
+				{
+					a = _b;
+					b = _a;
+				}
+			}
+
+			unsigned int a, b;
+		};
+
+		struct Neighbors
+		{
+			unsigned int n1;
+			unsigned int n2;
+
+			Neighbors()
+			{
+				n1 = n2 = (unsigned int)-1;
+			}
+
+			void AddNeigbor(unsigned int n)
+			{
+				if (n1 == -1) {
+					n1 = n;
+				}
+				else if (n2 == -1) {
+					n2 = n;
+				}
+				else {
+					assert(0);
+				}
+			}
+
+			unsigned int GetOther(unsigned int me) const
+			{
+				if (n1 == me) {
+					return n2;
+				}
+				else if (n2 == me) {
+					return n1;
+				}
+				else {
+					assert(0);
+				}
+
+				return 0;
+			}
+		};
+
+		struct CompareEdges
+		{
+			bool operator()(const Edge& Edge1, const Edge& Edge2) const
+			{
+				if (Edge1.a < Edge2.a) {
+					return true;
+				}
+				else if (Edge1.a == Edge2.a) {
+					return (Edge1.b < Edge2.b);
+				}
+				else {
+					return false;
+				}
+			}
+		};
+
+		struct CompareVectors
+		{
+			bool operator()(const aiVector3D& a, const aiVector3D& b) const
+			{
+				if (a.x < b.x) {
+					return true;
+				}
+				else if (a.x == b.x) {
+					if (a.y < b.y) {
+						return true;
+					}
+					else if (a.y == b.y) {
+						if (a.z < b.z) {
+							return true;
+						}
+					}
+				}
+
+				return false;
+			}
+		};
+
+		void findAdjacencies(mesh_index_t aMeshIndex, std::map<Edge, Neighbors, CompareEdges>& indexMap) const
+		{
+			const aiMesh* paiMesh = mScene->mMeshes[aMeshIndex];
+			// std::map<aiVector3D, uint32_t, CompareVectors> posMap;
+
+			for (unsigned int i = 0; i < paiMesh->mNumFaces; ++i) {
+
+				const aiFace& paiFace = paiMesh->mFaces[i];
+
+				glm::ivec3 face;
+
+				assert(paiFace.mNumIndices == 3);
+				for (unsigned int f = 0; f < 3; ++f) {
+					unsigned int index = paiFace.mIndices[f];
+					//aiVector3D& v = paiMesh->mVertices[index];
+
+					//if (posMap.find(v) == posMap.end()) {
+					//	posMap[v] = index;
+					//}
+					//else {
+					//	index = posMap[v];
+					//}
+					face[f] = index;
+				}
+
+				Edge e1(face[0], face[1]);
+				Edge e2(face[1], face[2]);
+				Edge e3(face[2], face[0]);
+
+				indexMap[e1].AddNeigbor(i);
+				indexMap[e2].AddNeigbor(i);
+				indexMap[e3].AddNeigbor(i);
+			}
+
+			for (const auto &e : indexMap) {
+				if (e.second.n1 == (unsigned int)-1) {
+					LOG_WARNING(fmt::format("open boundary edge {} - {}", e.first.a, e.first.b));
+				}
+				if (e.second.n2 == (unsigned int)-1) {
+					LOG_WARNING(fmt::format("open boundary edge {} - {}", e.first.a, e.first.b));
+				}
+			}
+		}
 		
 	private:
 		void initialize_materials();

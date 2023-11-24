@@ -6,7 +6,7 @@
 struct meshlet
 {
 	uint    mVertices[64];
-	uint8_t mIndices[372]; // 126 triangles * 3 indices
+	uint8_t mIndices[504]; // 126 triangles * 4 indices
 	uint8_t mVertexCount;
 	uint8_t mTriangleCount;
 };
@@ -28,9 +28,10 @@ struct extended_meshlet
 	
 	bool mAnimated;
 
+	vec3 center;
+	float radius;
 	vec3 coneAxis;
 	float coneCutoff;
-	float radius;
 
 	meshlet mGeometry;
 };
