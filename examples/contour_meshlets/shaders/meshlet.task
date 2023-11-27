@@ -50,7 +50,8 @@ void main()
 		vec3 cone_axis = meshletsBuffer.mValues[meshletIndex].coneAxis;
 		float cone_cutoff = meshletsBuffer.mValues[meshletIndex].coneCutoff;
 
-		meshletVisible = meshletVisible && !coneCull(center, radius, cone_axis, cone_cutoff, vec3(inverse(transformationMatrix) * vec4(ubo.mCameraCenter, 0)));
+		meshletVisible = meshletVisible && !coneCull(center, radius, cone_axis, cone_cutoff, vec3(inverse(transformationMatrix) * vec4(ubo.mCameraCenter,1)));
+		//meshletVisible = meshletVisible && !coneCull(vec3(transformationMatrix * vec4(center,1)), radius, mat3(transformationMatrix) * cone_axis, cone_cutoff, ubo.mCameraCenter);
 	}
 
 	uint insertIndex = subgroupExclusiveAdd(uint(meshletVisible));

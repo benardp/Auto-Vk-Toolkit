@@ -121,9 +121,9 @@ class skinned_meshlets_app : public avk::invokee
 		bool mAnimated;
 
 		glm::vec3 center;
+		float radius;
 		glm::vec3 coneAxis;
 		float coneCutoff;
-		float radius;
 
 #if !USE_REDIRECTED_GPU_DATA
 		avk::meshlet_gpu_data<sNumVertices, sNumIndices> mGeometry;
@@ -216,7 +216,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		// Create a descriptor cache that helps us to conveniently create descriptor sets:
 		mDescriptorCache = avk::context().create_descriptor_cache();
 
-		glm::mat4 globalTransform = glm::rotate(glm::radians(180.f), glm::vec3(0.f, 1.f, 0.f)) * glm::scale(glm::vec3(1.f));
+		glm::mat4 globalTransform = glm::mat4(1);// glm::rotate(glm::radians(180.f), glm::vec3(0.f, 1.f, 0.f))* glm::scale(glm::vec3(1.f));
 		std::vector<avk::model> loadedModels;
 		// Load a model from file:
 		//auto model = avk::model_t::load_from_file("assets/crab.fbx", aiProcess_Triangulate);
@@ -391,7 +391,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 								// definitions
 								size_t max_triangles = aMaxIndices / 3;
-								const float cone_weight = 0.5f;
+								const float cone_weight = 0.25f;
 
 								// get the maximum number of meshlets that could be generated
 								size_t max_meshlets = meshopt_buildMeshletsBound(aIndices.size(), aMaxVertices, max_triangles);
@@ -409,8 +409,17 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 								generatedMeshlets.resize(meshlet_count);
 								for (int k = 0; k < meshlet_count; k++) {
 									auto& m = meshlets[k];
+									auto& gm = generatedMeshlets[k];
+
+									// compute bounds
+									meshopt_Bounds bounds = meshopt_computeMeshletBounds(&(meshlet_vertices[m.vertex_offset]), &(meshlet_triangles[m.triangle_offset]), m.triangle_count, &tVertices[0].x, tVertices.size(), sizeof(glm::vec3));
+									gm.center = glm::vec3(bounds.center[0], bounds.center[1], bounds.center[2]);
+									gm.radius = bounds.radius;
+									gm.coneAxis = glm::vec3(bounds.cone_axis[0], bounds.cone_axis[1], bounds.cone_axis[2]);
+									gm.coneCutoff = bounds.cone_cutoff;
 
 									std::map<avk::model_t::Edge, avk::model_t::Neighbors, avk::model_t::CompareEdges> indexMap;
+									std::vector< std::pair<avk::model_t::Edge, unsigned int> > boundaryEdges;
 									for (unsigned int i = 0; i < m.triangle_count; ++i) {
 										glm::ivec3 face;
 										for (unsigned int f = 0; f < 3; ++f) {
@@ -425,12 +434,18 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 										indexMap[e3].AddNeigbor(i);
 									}
 
-									auto& gm = generatedMeshlets[k];
 									for (const auto& e : indexMap) {
-										if (e.second.n1 == (unsigned int)-1 || e.second.n2 == (unsigned int)-1)
+										// meshlet boundary edges
+										if (e.second.n1 == (unsigned int)-1) {
+											boundaryEdges.push_back(std::make_pair(e.first,e.second.n2));
 											continue;
+										}
+										if (e.second.n2 == (unsigned int)-1) {
+											boundaryEdges.push_back(std::make_pair(e.first, e.second.n1));
+											continue;
+										}
 										uint32_t v_a = e.first.a;
-										uint32_t v_b = e.first.b;
+										uint32_t v_b = e.first.b; 
 										uint32_t v_c, v_d;
 										for (unsigned int k = 0; k < 3; k++) {
 											uint32_t otherVertexIndex = meshlet_triangles[m.triangle_offset + 3 * e.second.n1 + k];
@@ -448,13 +463,74 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 										gm.mIndices.push_back(v_d);
 
 									}
-									gm.mIndexCount = gm.mIndices.size();
-									gm.mVertexCount = m.vertex_count;
 									
 									gm.mVertices.resize(m.vertex_count);
 									std::ranges::copy(meshlet_vertices.begin() + m.vertex_offset,
 										meshlet_vertices.begin() + m.vertex_offset + m.vertex_count,
 										gm.mVertices.begin());
+
+									for (const auto& pair : boundaryEdges) {
+										avk::model_t::Edge mesh_edge = pair.first;
+										uint32_t v_a = meshlet_vertices[m.vertex_offset + mesh_edge.a];
+										uint32_t v_b = meshlet_vertices[m.vertex_offset + mesh_edge.b];
+										uint32_t v_c = -1, lv_c;
+										for (unsigned int k = 0; k < 3; k++) {
+											lv_c = meshlet_triangles[m.triangle_offset + 3 * pair.second + k];
+											v_c = meshlet_vertices[m.vertex_offset + lv_c];
+											if (v_c != v_a && v_c != v_b) {
+												break;
+											}
+										}
+										assert(v_c != -1);
+										avk::model_t::Edge e(v_a, v_b);
+										assert(adjacency.find(e) != adjacency.end());
+										avk::model_t::Neighbors neighbours = adjacency[e];
+										uint32_t n = -1;
+										for (unsigned int k = 0; k < 3; k++) {
+											if (aIndices[neighbours.n1 * 3 + k] == v_c) {
+												n = neighbours.n2;
+												break;
+											}
+											if (aIndices[neighbours.n2 * 3 + k] == v_c) {
+												n = neighbours.n1;
+												break;
+											}
+										}
+										assert(n != -1);
+										uint32_t v_d = -1;
+										for (unsigned int k = 0; k < 3; k++) {
+											v_d = aIndices[n * 3 + k];
+											if (v_d != v_a && v_d != v_b) {
+												break;
+											}
+										}
+										assert(v_d != -1);
+										gm.mIndices.push_back(mesh_edge.a);
+										gm.mIndices.push_back(mesh_edge.b);
+										gm.mIndices.push_back(lv_c);
+										gm.mIndices.push_back(gm.mVertices.size());
+										gm.mVertices.push_back(v_d);
+									}
+
+									gm.mIndexCount = gm.mIndices.size();
+									gm.mVertexCount = gm.mVertices.size();
+
+									//float radius = 0.0;
+									//glm::vec3 center(0);
+									//for (unsigned int v : gm.mVertices) {
+									//	center += tVertices[v];
+									//}
+									//center /= gm.mVertexCount;
+
+									//for (unsigned int v : gm.mVertices) {
+									//	radius = std::max(radius, glm::length(tVertices[v] - center));
+									//}
+
+									//gm.center = center;
+									//gm.radius = radius;
+
+									assert(gm.mVertexCount <= 128);
+
 									
 									/*
 									gm.mIndexCount = m.triangle_count * 3;
@@ -467,16 +543,10 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 									std::ranges::copy(meshlet_triangles.begin() + m.triangle_offset,
 										meshlet_triangles.begin() + m.triangle_offset + gm.mIndexCount,
 										gm.mIndices.begin()); */
-
-									meshopt_Bounds bounds = meshopt_computeMeshletBounds(gm.mVertices.data(), gm.mIndices.data(), m.triangle_count, &tVertices[0].x, tVertices.size(), sizeof(glm::vec3));
-									gm.center = glm::vec3(bounds.center[0], bounds.center[1], bounds.center[2]);
-									gm.radius = bounds.radius;
-									gm.coneAxis = glm::vec3(bounds.cone_axis[0], bounds.cone_axis[1], bounds.cone_axis[2]);
-									gm.coneCutoff = bounds.cone_cutoff;
 								}
 
 								return generatedMeshlets;
-						}, true, 64, 20*4*3);
+						}, true, 32, 16*4*3);
 #if !USE_REDIRECTED_GPU_DATA
 #if USE_CACHE
 					avk::serializer serializer("direct_meshlets-" + meshname + "-" + std::to_string(mpos) + ".cache");
@@ -509,6 +579,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 						ml.mGeometry = genMeshlet;
 						ml.mGeometry.mPrimitiveCount = cpuMeshlet.mIndexCount / 4;
 						assert(ml.mGeometry.mPrimitiveCount <= 126);
+						assert(ml.mGeometry.mVertexCount <= 64);
 						ml.mAnimated = false;
 
 						ml.center = cpuMeshlet.center;
@@ -618,6 +689,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			    // Some further settings:
 			    avk::cfg::front_face::define_front_faces_to_be_counter_clockwise(),
 			    avk::cfg::viewport_depth_scissors_config::from_framebuffer(avk::context().main_window()->backbuffer_reference_at_index(0)),
+				avk::cfg::polygon_drawing(avk::cfg::polygon_drawing::dynamic_for_lines()),
 			    // We'll render to the back buffer, which has a color attachment always, and in our case additionally a depth
 			    // attachment, which has been configured when creating the window. See main() function!
 			    avk::context().create_renderpass({
@@ -829,11 +901,14 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		}
 
 		auto& pipeline = mUseNvPipeline.value_or(false) ? mPipelineNv : mPipelineExt;
+
 		context().record(command::gather(
 			    mPipelineStatsPool->reset(inFlightIndex, 1),
 			    mPipelineStatsPool->begin_query(inFlightIndex),
 			    mTimestampPool->reset(firstQueryIndex, 2),     // reset the two values relevant for the current frame in flight
 			    mTimestampPool->write_timestamp(firstQueryIndex + 0, stage::all_commands), // measure before drawMeshTasks*
+
+				command::custom_commands([&](avk::command_buffer_t& cb) { vkCmdSetLineWidth(cb.handle(), 2.f); }),
 
 				// Upload the updated bone matrices into the buffer for the current frame (considering that we have cConcurrentFrames-many concurrent frames):
 				command::one_for_each(mAnimatedModels, [this, inFlightIndex](const std::tuple<animated_model_data, additional_animated_model_data>& tpl){
@@ -975,6 +1050,7 @@ int main() // <== Starting point ==
 			},
 			[](vk::PhysicalDeviceFeatures& features) {
 				features.setPipelineStatisticsQuery(VK_TRUE);
+				features.setWideLines(VK_TRUE);
 			},
 			[](vk::PhysicalDeviceVulkan12Features& features) {
 				features.setUniformAndStorageBuffer8BitAccess(VK_TRUE);

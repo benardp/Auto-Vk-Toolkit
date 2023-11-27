@@ -87,7 +87,7 @@ uint hash(uint a)
    return a;
 }
 
-shared vec3 vertexPos[64]; // TODO: this is the # of vertices per meshlet and should be tuned in sync with 64 at top of shader
+shared vec3 vertexPos[64];
 
 //////////////////////////////////////////////////////////////////////
 // Mesh Shader Main:
@@ -114,6 +114,11 @@ void main()
 #endif
 	
 	bool animated =  meshletsBuffer.mValues[meshletIndex].mAnimated;
+
+	vec3 center = meshletsBuffer.mValues[meshletIndex].center;
+	float radius = meshletsBuffer.mValues[meshletIndex].radius;
+	vec3 cone_axis = meshletsBuffer.mValues[meshletIndex].coneAxis;
+	float cone_cutoff = meshletsBuffer.mValues[meshletIndex].coneCutoff;
 
 	// Sets the actual output size of the primitives and vertices that the 
 	// mesh shader workgroup will emit upon completion:
@@ -166,6 +171,11 @@ void main()
 		}
 		
 		// Rest of the transformation:
+
+		//vec4 posWS = transformationMatrix * vec4(center + radius * normalize(aniPos.xyz - center), 1); // project to bounding sphere
+		//vec3 dir = (aniPos.xyz - center) - dot((aniPos.xyz - center), cone_axis) * cone_axis;
+		//vec4 posWS = transformationMatrix * vec4(center + dir + cone_axis * length(dir) / tan(acos(cone_cutoff)) * 5 , 1); // project to bounding cone
+		
 		vec4 posWS = transformationMatrix * aniPos;
 		vertexPos[i] = posWS.xyz;
 		vec4 posCS = ubo.mViewProjMatrix * posWS;
