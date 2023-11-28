@@ -7,3 +7,29 @@ out/
 
 # CLion cache
 .idea/
+visual_studio/external/meshcontours/x64/Debug/cmccommon.obj
+visual_studio/external/meshcontours/x64/Debug/cmcextract.obj
+visual_studio/external/meshcontours/x64/Debug/cmclod-creation.obj
+visual_studio/external/meshcontours/x64/Debug/cmclod-creation-bv.obj
+visual_studio/external/meshcontours/x64/Debug/cmclod-creation-ndf.obj
+visual_studio/external/meshcontours/x64/Debug/cmclod-creation-octree.obj
+visual_studio/external/meshcontours/x64/Debug/cmclod-creation-patchfusion.obj
+visual_studio/external/meshcontours/x64/Debug/cmclod-extract.obj
+visual_studio/external/meshcontours/x64/Debug/meshcontours.lib.recipe
+visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/Cl.items.tlog
+visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/CL.read.1.tlog
+visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/CL.write.1.tlog
+visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/Lib.command.1.tlog
+visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/Lib-link.read.1.tlog
+visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/Lib-link.write.1.tlog
+visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/link.command.1.tlog
+visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/link.read.1.tlog
+visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/link.read.2.tlog
+visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/link.write.1.tlog
+visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/link-cvtres.read.1.tlog
+visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/link-cvtres.write.1.tlog
+visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/link-rc.read.1.tlog
+visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/link-rc.write.1.tlog
+visual_studio/x64/Debug/meshcontours.idb
+visual_studio/x64/Debug/meshcontours.lib
+visual_studio/x64/Debug/meshcontours.pdb

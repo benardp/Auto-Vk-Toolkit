@@ -12,6 +12,8 @@
 #include "quake_camera.hpp"
 #include "sequential_invoker.hpp"
 #include "meshoptimizer.h"
+#include "cmccommon.h"
+#include "lod/cmclod-common.h"
 
 /**
  *	Please note: This example can provide the geometry data in two different formats:
