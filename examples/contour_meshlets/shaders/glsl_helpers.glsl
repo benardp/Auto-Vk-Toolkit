@@ -24,6 +24,7 @@ vec3 bone_transform(mat4 BM0, mat4 BM1, mat4 BM2, mat4 BM3, vec4 weights, vec3 n
 bool coneCull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec3 camera_position)
 {
 	vec3 ViewSpine = center - camera_position;
+	//return dot(-ViewSpine, cone_axis) < 0;
 	return dot(ViewSpine, cone_axis) >= cone_cutoff * length(ViewSpine) + radius;
 	//return dot(ViewSpine, cone_axis) >= sin( acos(cone_cutoff) + asin(radius/length(ViewSpine)) );
 
