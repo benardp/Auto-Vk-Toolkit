@@ -4,3 +4,9 @@
 [submodule "external/meshoptimizer"]
 	path = external/meshoptimizer
 	url = https://github.com/zeux/meshoptimizer.git
+[submodule "external/meshcontours"]
+	path = external/meshcontours
+	url = git@gitlab.inria.fr:panagiotis.tsiapkolis/meshcountours-dev.git
+[submodule "external/eigen"]
+	path = external/eigen
+	url = https://gitlab.com/libeigen/eigen.git
