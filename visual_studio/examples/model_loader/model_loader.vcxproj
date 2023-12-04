@@ -32,6 +32,7 @@
     <None Include="..\..\..\assets\3rd_party\models\sponza\sponza_structure.obj">
       <FileType>Document</FileType>
     </None>
+    <None Include="..\..\..\assets\meshcountours-models\CubeBevel-E66\CubeBevel-E66.cmcr" />
     <None Include="..\..\..\examples\model_loader\shaders\diffuse_shading_fixed_lightsource.frag" />
     <None Include="..\..\..\examples\model_loader\shaders\transform_and_pass_pos_nrm_uv.vert" />
   </ItemGroup>
@@ -179,10 +180,13 @@
       <ForcedIncludeFiles>cg_stdafx.hpp</ForcedIncludeFiles>
       <TreatSpecificWarningsAsErrors>4715</TreatSpecificWarningsAsErrors>
       <PrecompiledHeaderFile>cg_stdafx.hpp</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>F:\Pierre\Recherche\Auto-Vk-Toolkit\external\eigen;F:\Pierre\Recherche\Auto-Vk-Toolkit\external\meshcontours\01-meshcontours\CMeshContours;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>F:\Pierre\Recherche\Auto-Vk-Toolkit\visual_studio\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>meshcontours.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
       <Command>powershell.exe -ExecutionPolicy Bypass -File "$(ToolsBin)invoke_post_build_helper.ps1" -msbuild "$(MsBuildToolsPath)"  -configuration "$(Configuration)" -framework "$(FrameworkRoot)\"  -platform "$(Platform)" -vcxproj "$(ProjectPath)" -filters "$(ProjectPath).filters" -output "$(OutputPath)\" -executable "$(TargetPath)" -external "$(ExternalRoot)\"</Command>

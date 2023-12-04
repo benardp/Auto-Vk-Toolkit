@@ -27,6 +27,12 @@
     <ClInclude Include="..\..\..\external\meshcontours\01-meshcontours\CMeshContours\extract\cmcextract.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\external\meshcontours\01-meshcontours\CMeshContours\preprocess\cmcpreprocess.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\meshcountours-dev\01-meshcontours\CMeshContours\interface\cmcinterface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\external\meshcontours\01-meshcontours\CMeshContours\lod\cmclod-creation-octree.cpp">
@@ -51,6 +57,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\external\meshcontours\01-meshcontours\CMeshContours\extract\cmcextract.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\external\meshcontours\01-meshcontours\CMeshContours\preprocess\cmcpreprocess.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\meshcountours-dev\01-meshcontours\CMeshContours\interface\cmcinterface.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

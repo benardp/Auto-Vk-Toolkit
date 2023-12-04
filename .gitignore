@@ -33,3 +33,8 @@ visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/link-rc.write.1.
 visual_studio/x64/Debug/meshcontours.idb
 visual_studio/x64/Debug/meshcontours.lib
 visual_studio/x64/Debug/meshcontours.pdb
+visual_studio/external/meshcontours/x64/Debug/cmclod-main.obj
+visual_studio/external/meshcontours/x64/Debug/cmcpreprocess.obj
+visual_studio/external/meshcontours/x64/Debug/meshcontours.log
+visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/CL.command.1.tlog
+visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/meshcontours.lastbuildstate

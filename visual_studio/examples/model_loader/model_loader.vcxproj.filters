@@ -28,6 +28,9 @@
     <None Include="..\..\..\examples\model_loader\shaders\diffuse_shading_fixed_lightsource.frag">
       <Filter>shaders</Filter>
     </None>
+    <None Include="..\..\..\assets\meshcountours-models\CubeBevel-E66\CubeBevel-E66.cmcr">
+      <Filter>assets</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cg_stdafx.hpp">

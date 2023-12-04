@@ -105,12 +105,16 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>F:\Pierre\Recherche\Auto-Vk-Toolkit\external\eigen;$(AutoVkRoot)..\external\eigen;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>/D _CRT_SECURE_NO_WARNINGS /D _USE_MATH_DEFINES /std:c++17 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/D _CRT_SECURE_NO_WARNINGS /D _USE_MATH_DEFINES %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <Lib>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -121,7 +125,8 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>F:\Pierre\Recherche\Auto-Vk-Toolkit\external\eigen;$(AutoVkRoot)..\external\eigen;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>/D _CRT_SECURE_NO_WARNINGS /D _USE_MATH_DEFINES /std:c++17 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/D _CRT_SECURE_NO_WARNINGS /D _USE_MATH_DEFINES %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -129,14 +134,20 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <Lib>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\..\meshcountours-dev\01-meshcontours\CMeshContours\interface\cmcinterface.h" />
     <ClInclude Include="..\..\..\external\meshcontours\01-meshcontours\CMeshContours\cmccommon.h" />
     <ClInclude Include="..\..\..\external\meshcontours\01-meshcontours\CMeshContours\extract\cmcextract.h" />
     <ClInclude Include="..\..\..\external\meshcontours\01-meshcontours\CMeshContours\lod\cmclod-common.h" />
     <ClInclude Include="..\..\..\external\meshcontours\01-meshcontours\CMeshContours\lod\cmclod-creation.h" />
+    <ClInclude Include="..\..\..\external\meshcontours\01-meshcontours\CMeshContours\preprocess\cmcpreprocess.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\..\meshcountours-dev\01-meshcontours\CMeshContours\interface\cmcinterface.cpp" />
     <ClCompile Include="..\..\..\external\meshcontours\01-meshcontours\CMeshContours\cmccommon.cpp" />
     <ClCompile Include="..\..\..\external\meshcontours\01-meshcontours\CMeshContours\extract\cmcextract.cpp" />
     <ClCompile Include="..\..\..\external\meshcontours\01-meshcontours\CMeshContours\lod\cmclod-creation-bv.cpp" />
@@ -145,6 +156,7 @@
     <ClCompile Include="..\..\..\external\meshcontours\01-meshcontours\CMeshContours\lod\cmclod-creation-patchfusion.cpp" />
     <ClCompile Include="..\..\..\external\meshcontours\01-meshcontours\CMeshContours\lod\cmclod-creation.cpp" />
     <ClCompile Include="..\..\..\external\meshcontours\01-meshcontours\CMeshContours\lod\cmclod-extract.cpp" />
+    <ClCompile Include="..\..\..\external\meshcontours\01-meshcontours\CMeshContours\preprocess\cmcpreprocess.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -11,6 +11,8 @@
 #include "ui_helper.hpp"
 #include "vk_convenience_functions.hpp"
 
+#include "interface/cmcinterface.h"
+
 class model_loader_app : public avk::invokee
 {
 	struct data_for_draw_call
@@ -54,30 +56,50 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 		// Create a descriptor cache that helps us to conveniently create descriptor sets:
 		mDescriptorCache = avk::context().create_descriptor_cache();
+		
+		void** dataPassBuffers = (void**)malloc(sizeof(void*) * 3);
+		CMCModuleStart(dataPassBuffers);
+		float* dataPassBufferFloat = (float*)dataPassBuffers[0];
+		int* dataPassBufferInt = (int*)dataPassBuffers[1];
+		SceneData* sceneData = CMCInternal_GetSceneData();
+		char* filepath = (char*)"assets/CubeBevel-E66.cmcr";
+		MeshletData* mData = CMCInternal_LoadNewMeshletDataFromDisk(filepath);
 
-		// Load a model from file:
-		auto sponza = avk::model_t::load_from_file("assets/sponza_structure.obj", aiProcess_Triangulate | aiProcess_PreTransformVertices);
-		// Get all the different materials of the model:
-		auto distinctMaterials = sponza->distinct_material_configs();
+		auto& newElement = mDrawCalls.emplace_back();
 
-		// The following might be a bit tedious still, but maybe it's not. For what it's worth, it is expressive.
-		// The following loop gathers all the vertex and index data PER MATERIAL and constructs the buffers and materials.
-		// Later, we'll use ONE draw call PER MATERIAL to draw the whole scene.
+		newElement.mPositions.resize(mData->nbVertices);
+		newElement.mNormals.resize(mData->nbVertices);
+		for (size_t k = 0; k < mData->nbVertices; ++k) {
+			newElement.mPositions[k] = glm::vec3(mData->restPosition[3 * k], mData->restPosition[3 * k + 1], mData->restPosition[3 * k + 2]);
+			newElement.mNormals[k] = glm::vec3(1.f, 1.f, 1.f);
+		}
+		newElement.mIndices = std::move(std::vector<uint32_t>(mData->topoFaceVertex, mData->topoFaceVertex + mData->nbFaces * 3));
+		newElement.mTexCoords.resize(mData->nbVertices);
+
+		//// Load a model from file:
+		//auto sponza = avk::model_t::load_from_file("assets/sponza_structure.obj", aiProcess_Triangulate | aiProcess_PreTransformVertices);
+		//// Get all the different materials of the model:
+		//auto distinctMaterials = sponza->distinct_material_configs();
+
+		//// The following might be a bit tedious still, but maybe it's not. For what it's worth, it is expressive.
+		//// The following loop gathers all the vertex and index data PER MATERIAL and constructs the buffers and materials.
+		//// Later, we'll use ONE draw call PER MATERIAL to draw the whole scene.
 		std::vector<avk::material_config> allMatConfigs;
-		for (const auto& pair : distinctMaterials) {
-			auto& newElement = mDrawCalls.emplace_back();
-			allMatConfigs.push_back(pair.first);
-			newElement.mMaterialIndex = static_cast<int>(allMatConfigs.size() - 1);
+		allMatConfigs.push_back(avk::material_config());
+		//for (const auto& pair : distinctMaterials) {
+		//	auto& newElement = mDrawCalls.emplace_back();
+		//	allMatConfigs.push_back(pair.first);
+		//	newElement.mMaterialIndex = static_cast<int>(allMatConfigs.size() - 1);
 
-			// 1. Gather all the vertex and index data from the sub meshes:
-			for (auto index : pair.second) {
-				avk::append_indices_and_vertex_data(
-					avk::additional_index_data(	newElement.mIndices,	[&]() { return sponza->indices_for_mesh<uint32_t>(index);								} ),
-					avk::additional_vertex_data(newElement.mPositions,	[&]() { return sponza->positions_for_mesh(index);							} ),
-					avk::additional_vertex_data(newElement.mTexCoords,	[&]() { return sponza->texture_coordinates_for_mesh<glm::vec2>(index, 0);	} ),
-					avk::additional_vertex_data(newElement.mNormals,	[&]() { return sponza->normals_for_mesh(index);								} )
-				);
-			}
+		//	// 1. Gather all the vertex and index data from the sub meshes:
+		//	for (auto index : pair.second) {
+		//		avk::append_indices_and_vertex_data(
+		//			avk::additional_index_data(	newElement.mIndices,	[&]() { return sponza->indices_for_mesh<uint32_t>(index);								} ),
+		//			avk::additional_vertex_data(newElement.mPositions,	[&]() { return sponza->positions_for_mesh(index);							} ),
+		//			avk::additional_vertex_data(newElement.mTexCoords,	[&]() { return sponza->texture_coordinates_for_mesh<glm::vec2>(index, 0);	} ),
+		//			avk::additional_vertex_data(newElement.mNormals,	[&]() { return sponza->normals_for_mesh(index);								} )
+		//		);
+		//	}
 
 			// 2. Build all the buffers for the GPU
 			// 2.1 Positions:
@@ -118,7 +140,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			}, *mQueue);
 			// Wait on the host until the device is done:
 			fence->wait_until_signalled();
-		}
+		//}
 
 		// For all the different materials, transfer them in structs which are well
 		// suited for GPU-usage (proper alignment, and containing only the relevant data),

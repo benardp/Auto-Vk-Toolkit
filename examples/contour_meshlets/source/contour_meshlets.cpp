@@ -12,8 +12,7 @@
 #include "quake_camera.hpp"
 #include "sequential_invoker.hpp"
 #include "meshoptimizer.h"
-#include "cmccommon.h"
-#include "lod/cmclod-common.h"
+#include "interface/cmcinterface.h"
 
 /**
  *	Please note: This example can provide the geometry data in two different formats:
@@ -224,7 +223,18 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		//auto model = avk::model_t::load_from_file("assets/crab.fbx", aiProcess_Triangulate);
 		//loadedModels.push_back(std::move(model));
 
-		auto model = avk::model_t::load_from_file("assets/stanford_bunny2.obj", aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_PreTransformVertices);
+		void** dataPassBuffers = (void**)malloc(sizeof(void*) * 3);
+		CMCModuleStart(dataPassBuffers);
+		float* dataPassBufferFloat = (float*)dataPassBuffers[0];
+		int* dataPassBufferInt = (int*)dataPassBuffers[1];
+		SceneData* sceneData = CMCInternal_GetSceneData();
+		char* filepath = (char*) "assets/MESH_bunny.cmcr";
+		MeshletData* mData = CMCInternal_LoadNewMeshletDataFromDisk(filepath);
+		ProxyMesh* pMesh = CMCInternal_LoadProxyMeshFromBasePath(mData, (mData->proxyMeshes + LODMETHOD_PATCHFUSION_GPU_REDUCEDSPHERE), LODMETHOD_PATCHFUSION_GPU_REDUCEDSPHERE, filepath);
+
+
+
+		auto model = avk::model_t::load_from_file("assets/bun_zipper.ply", aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_PreTransformVertices);
 		loadedModels.push_back(std::move(model));
 
 		std::vector<avk::material_config> allMatConfigs; // <-- Gather the material config from all models to be loaded
@@ -377,12 +387,12 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 					auto selection = avk::make_model_references_and_mesh_indices_selection(curModel, meshIndex);
 					// Build meshlets:
-					std::tie(drawCallData.mPositions, drawCallData.mIndices) = avk::get_vertices_and_indices(selection);
-					drawCallData.mNormals = avk::get_normals(selection);
-					drawCallData.mTexCoords = avk::get_2d_texture_coordinates(selection, 0);
+					// std::tie(drawCallData.mPositions, drawCallData.mIndices) = avk::get_vertices_and_indices(selection);
+					// drawCallData.mNormals = avk::get_normals(selection);
+					// drawCallData.mTexCoords = avk::get_2d_texture_coordinates(selection, 0);
 					// Empty bone indices and weights too
-					drawCallData.mBoneIndices.resize(drawCallData.mPositions.size());
-					drawCallData.mBoneWeights.resize(drawCallData.mPositions.size()) ;
+					//drawCallData.mBoneIndices.resize(drawCallData.mPositions.size());
+					//drawCallData.mBoneWeights.resize(drawCallData.mPositions.size()) ;
 
 					// create selection for the meshlets
 					auto meshletSelection = avk::make_models_and_mesh_indices_selection(curModel, meshIndex);
@@ -554,7 +564,207 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 							return generatedMeshlets;
 						};
 
-					auto cpuMeshlets = avk::divide_into_meshlets(meshletSelection, meshoptimizer_clustering, true, 32, 16*4*3);
+						/* auto meshcontours_LOD = [&](const std::vector<glm::vec3>& tVertices, const std::vector<uint32_t>& aIndices,
+							const avk::model_t& aModel, std::optional<avk::mesh_index_t> aMeshIndex,
+							uint32_t aMaxVertices, uint32_t aMaxIndices) {
+
+								ComputerProfilingData computerInria;
+								computerInria.computerID = 0;
+								computerInria.CPU_CostPerEdgeTest = 3.96827596; // To redo
+								computerInria.CPU_CostPerPatchTest = 5.408779793;
+								computerInria.GPU_CostPerEdgeTest = 0.33799174979074; // in ns
+								computerInria.GPU_CostPerPatchTest = 0.440296657093; // in ns, occup method
+								computerInria.GPU_PatchOccupancy = 16;
+								computerInria.GPU_EdgeOccupancy = 16;
+
+								MeshletData mData;
+								mData.nbVertices = tVertices.size();
+								mData.nbFaces = aIndices.size() / 3;
+								mData.nbEdges = adjacency.size();
+								mData.nbBones = 0;
+
+								mData.restPosition = (float*) &(tVertices[0][0]);
+								mData.topoFaceVertex = (unsigned int *)aIndices.data();
+								mData.cdVertexCoord = (float*)&(tVertices[0][0]);
+								
+								// Construct winged edge
+								int* topoWingedEdgeVVVVFF = (int*)malloc(sizeof(int) * 6 * mData.nbEdges);
+								int* topoWingedEdgeVVVV = (int*)malloc(sizeof(int) * 4 * mData.nbEdges);
+								int* topoWingedEdgeVVFF = (int*)malloc(sizeof(int) * 4 * mData.nbEdges);
+								int* topoWingedEdgeVVVVI = (int*)malloc(sizeof(int) * 5 * mData.nbEdges);
+								size_t i = 0;
+								for (const auto& [edge, neighboor] : adjacency) {
+									topoWingedEdgeVVVVFF[6 * i] = edge.a;
+									topoWingedEdgeVVVVFF[6 * i + 1] = edge.b;
+
+									topoWingedEdgeVVVV[4 * i] = edge.a;
+									topoWingedEdgeVVVV[4 * i + 1] = edge.b;
+
+									topoWingedEdgeVVVVI[5 * i] = edge.a;
+									topoWingedEdgeVVVVI[5 * i + 1] = edge.b;
+
+									topoWingedEdgeVVFF[4 * i] = edge.a;
+									topoWingedEdgeVVFF[4 * i + 1] = edge.a;
+
+									for (int j = 0; j < 2; ++j) {
+										int faceIndex = j == 0 ? neighboor.n1 : neighboor.n2;
+										int vertexIndex = -1;
+										int flipIndicator = 1;
+										if (faceIndex >= 0) {
+											vertexIndex = aIndices[3 * faceIndex];
+											if (vertexIndex == edge.a || vertexIndex == edge.b) {
+												vertexIndex = aIndices[3 * faceIndex + 1];
+												if (vertexIndex == edge.a || vertexIndex == edge.b)
+													vertexIndex = aIndices[3 * faceIndex + 2];
+											}
+
+											// Activate the flip indicator if the vertex order is reversed
+											//  1 if the vertex order is ABD
+											// -1 if the vertex order is BAD
+											int vertexIndexA = edge.a;
+											int vertexIndexB = edge.b;
+											if ((aIndices[3 * faceIndex + 0] == vertexIndexB && aIndices[3 * faceIndex + 1] == vertexIndexA) ||
+												(aIndices[3 * faceIndex + 1] == vertexIndexB && aIndices[3 * faceIndex + 2] == vertexIndexA) ||
+												(aIndices[3 * faceIndex + 2] == vertexIndexB && aIndices[3 * faceIndex + 0] == vertexIndexA))
+												flipIndicator = -1;
+										}
+										
+										topoWingedEdgeVVVVFF[6 * i + 2 + j] = vertexIndex;
+										topoWingedEdgeVVVVFF[6 * i + 4 + j] = faceIndex;
+										
+										topoWingedEdgeVVVV[4 * i + 2 + j] = vertexIndex;
+										
+										topoWingedEdgeVVVVI[5 * i + 2 + j] = vertexIndex;
+										topoWingedEdgeVVVVI[5 * i + 4] = flipIndicator;
+										
+										topoWingedEdgeVVFF[4 * i + 2 + j] = faceIndex;
+									}
+									++i;
+								}
+								mData.topoWingedEdgeVVVVFF = topoWingedEdgeVVVVFF;
+								mData.topoWingedEdgeVVVV = topoWingedEdgeVVVV;
+								mData.topoWingedEdgeVVVVI = topoWingedEdgeVVVVI;
+								mData.topoWingedEdgeVVFF = topoWingedEdgeVVFF;
+
+								ProxyMesh pMesh;
+								pMesh.methodID = LODMETHOD_PATCHFUSION_GPU_MEANSPHEREPLUS;
+								pMesh.nbFreeEdges = 0;
+								pMesh.nbPositiveEdges = 0;
+								pMesh.freeEdgesIDs = (int*)malloc(sizeof(int) * mData.nbEdges);
+								pMesh.positiveEdgesIDTypes = (int*)malloc(sizeof(int) * 2 * mData.nbEdges);
+
+								SetComputerProfilingData(computerInria);
+
+								ProxyMesh* pMesh2 = LODMake_PatchFusion(&mData, &pMesh, EEM_CPP_LODEXTRACT, BVMETHOD_MEAN_SPHERE_PLUS, NDFMETHOD_NORMAL_CONE);
+
+								std::vector<avk::meshlet> generatedMeshlets(pMesh2->nbPatches);
+
+
+								return generatedMeshlets;
+
+							};*/
+
+					// auto cpuMeshlets = avk::divide_into_meshlets(meshletSelection, meshoptimizer_clustering, true, 32, 16*4*3);
+					
+					drawCallData.mPositions.resize(mData->nbVertices);
+					drawCallData.mNormals.resize(mData->nbVertices);
+					for (size_t k = 0; k < mData->nbVertices; ++k) {
+						drawCallData.mPositions[k] = glm::vec3(mData->restPosition[3 * k], mData->restPosition[3 * k + 1], mData->restPosition[3 * k + 2]);
+					}
+					drawCallData.mIndices = std::move(std::vector<uint32_t>(mData->topoFaceVertex, mData->topoFaceVertex + mData->nbFaces * 3));
+					drawCallData.mTexCoords.resize(mData->nbVertices);
+					drawCallData.mBoneIndices.resize(mData->nbVertices);
+					drawCallData.mBoneWeights.resize(mData->nbVertices);
+
+					std::vector<avk::meshlet> cpuMeshlets(pMesh->nbPatches);
+					std::vector<avk::meshlet> extraMeshlets;
+					curModel.enable_shared_ownership();
+					for (size_t k = 0; k < pMesh->nbPatches; ++k) {
+						avk::meshlet* cpuMeshlet = &cpuMeshlets[k];
+						auto& patch = pMesh->patches[k];
+
+						int ctrlIDA = patch.patchBasisVerticesID[0];
+						int ctrlIDB = patch.patchBasisVerticesID[1];
+						int ctrlIDC = patch.patchBasisVerticesID[2];
+						vec3 patchBasisPosA = vec3(mData->restPosition[3 * ctrlIDA], mData->restPosition[3 * ctrlIDA + 1], mData->restPosition[3 * ctrlIDA + 2]);
+						vec3 patchBasisPosB = vec3(mData->restPosition[3 * ctrlIDB], mData->restPosition[3 * ctrlIDB + 1], mData->restPosition[3 * ctrlIDB + 2]);
+						vec3 patchBasisPosC = vec3(mData->restPosition[3 * ctrlIDC], mData->restPosition[3 * ctrlIDC + 1], mData->restPosition[3 * ctrlIDC + 2]);
+						vec3 patchBasisX = (patchBasisPosB - patchBasisPosA).normalized();
+						vec3 patchBasisY = (patchBasisPosC - patchBasisPosA);
+						patchBasisY = (patchBasisY - patchBasisX * patchBasisX.dot(patchBasisY)).normalized();
+						vec3 patchBasisZ = patchBasisY.cross(patchBasisX).normalized();
+						vec3 sphereOrigin = patchBasisPosA + patch.boundingSphereOriginInPatchBasis.x() * patchBasisX + patch.boundingSphereOriginInPatchBasis.y() * patchBasisY + patch.boundingSphereOriginInPatchBasis.z() * patchBasisZ;
+						vec3 normal = patch.ndfConeDirectionInPatchBasis.x() * patchBasisX + patch.ndfConeDirectionInPatchBasis.y() * patchBasisY + patch.ndfConeDirectionInPatchBasis.z() * patchBasisZ;
+
+						std::map<int, unsigned int> indicesMap;
+						for (size_t i = 0; i < patch.nbFreeEdges; ++i) {
+							for (size_t j = 0; j < 4; ++j) {
+								int idx = patch.patchPRTOTopoBufferVVVV[4 * i + j];
+								assert(idx < mData->nbVertices);
+								if (idx == -1) {
+									idx = 0; // boundary
+								}
+								if (indicesMap.find(idx) == indicesMap.end()) {
+									indicesMap[idx] = cpuMeshlet->mVertices.size();
+									cpuMeshlet->mVertices.push_back(idx);
+								}
+								cpuMeshlet->mIndices.push_back(indicesMap[idx]);
+							}
+							if (cpuMeshlet->mVertices.size() >= 60 || cpuMeshlet->mIndices.size() / 4 == 126) {
+								//LOG_WARNING(std::format("Patch too big {} vertices, {} faces", cpuMeshlet->mVertices.size(), cpuMeshlet->mIndices.size() / 4));
+								cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
+								cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
+
+								cpuMeshlet->center = glm::vec3(sphereOrigin.x(), sphereOrigin.y(), sphereOrigin.z());
+								cpuMeshlet->radius = patch.boundingSphereRadius;
+								cpuMeshlet->coneAxis = glm::vec3(normal.x(), normal.y(), normal.z());
+								cpuMeshlet->coneCutoff = patch.ndfConeAngleRadians;
+								//break;
+								cpuMeshlet = &extraMeshlets.emplace_back();
+								indicesMap.clear();
+							}
+						}
+
+						cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
+						cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
+
+						cpuMeshlet->center = glm::vec3(sphereOrigin.x(), sphereOrigin.y(), sphereOrigin.z());
+						cpuMeshlet->radius = patch.boundingSphereRadius;
+						cpuMeshlet->coneAxis = glm::vec3(normal.x(), normal.y(), normal.z());
+						cpuMeshlet->coneCutoff = patch.ndfConeAngleRadians;
+					}
+
+					for (size_t k = 0; k < pMesh->nbFreeEdges; k++) {
+						avk::meshlet* cpuMeshlet = &extraMeshlets.emplace_back();
+						int eId = pMesh->freeEdgesIDs[k];
+						std::map<int, unsigned int> indicesMap;
+						for (size_t j = 0; j < 4; ++j) {
+							int idx = mData->topoWingedEdgeVVVV[4 * eId + j];
+							if (idx == -1) {
+								idx = 0; // boundary
+							}
+							if (indicesMap.find(idx) == indicesMap.end()) {
+								indicesMap[idx] = cpuMeshlet->mVertices.size();
+								cpuMeshlet->mVertices.push_back(idx);
+							}
+							cpuMeshlet->mIndices.push_back(indicesMap[idx]);
+							if (cpuMeshlet->mVertices.size() >= 60 || cpuMeshlet->mIndices.size() / 4 == 126) {
+								//LOG_WARNING(std::format("Patch too big {} vertices, {} faces", cpuMeshlet->mVertices.size(), cpuMeshlet->mIndices.size() / 4));
+								cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
+								cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
+
+								cpuMeshlet = &extraMeshlets.emplace_back();
+								indicesMap.clear();
+							}
+						}
+						cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
+						cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
+
+						cpuMeshlet->coneCutoff = 3.14;
+					}
+
+					cpuMeshlets.insert(cpuMeshlets.begin(), std::make_move_iterator(extraMeshlets.begin()), std::make_move_iterator(extraMeshlets.end()));
+
 #if !USE_REDIRECTED_GPU_DATA
 #if USE_CACHE
 					avk::serializer serializer("direct_meshlets-" + meshname + "-" + std::to_string(mpos) + ".cache");
@@ -585,6 +795,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 						ml.mTexelBufferIndex = static_cast<uint32_t>(texelBufferIndex);
 
 						ml.mGeometry = genMeshlet;
+						assert(cpuMeshlet.mIndexCount % 4 == 0);
 						ml.mGeometry.mPrimitiveCount = cpuMeshlet.mIndexCount / 4;
 						assert(ml.mGeometry.mPrimitiveCount <= 126);
 						assert(ml.mGeometry.mVertexCount <= 64);
