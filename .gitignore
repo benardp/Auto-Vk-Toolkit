@@ -38,3 +38,5 @@ visual_studio/external/meshcontours/x64/Debug/cmcpreprocess.obj
 visual_studio/external/meshcontours/x64/Debug/meshcontours.log
 visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/CL.command.1.tlog
 visual_studio/external/meshcontours/x64/Debug/meshcontours.tlog/meshcontours.lastbuildstate
+visual_studio/external/meshoptimizer/meshoptimizer.dir/Debug/meshoptimizer.log
+visual_studio/external/meshcontours/x64/Debug/cmcinterface.obj
