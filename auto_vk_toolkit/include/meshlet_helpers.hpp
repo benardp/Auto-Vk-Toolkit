@@ -26,9 +26,9 @@ namespace avk
 		uint32_t mIndexCount;
 
 		glm::vec3 center;
+		float radius;
 		glm::vec3 coneAxis;
 		float coneCutoff;
-		float radius;
 	};
 
 	/** Meshlet for GPU usage

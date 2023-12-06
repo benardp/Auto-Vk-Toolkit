@@ -33,12 +33,17 @@ layout(set = 0, binding = 1) uniform CameraTransform
 
 layout(set = 4, binding = 0) buffer MeshletsBuffer { extended_meshlet mValues[]; } meshletsBuffer;
 
+shared int numMeshlets;
+
 void main() 
 {
 	// Calculate and set the meshlet index for this execution:
 	uint groupId      = gl_WorkGroupID.x;
 	uint invocationId = gl_LocalInvocationID.x;
 	uint meshletIndex = groupId * NUM_TASK_SHADER_INVOCATIONS + invocationId;
+
+	numMeshlets = 0;
+	barrier(); // for numMeshlets
 
 	// See if this meshlet shall be rendered, and if so, add it to the array:
 	bool meshletVisible = meshletIndex >= pushConstants.mVisibleMeshletIndexFrom && meshletIndex < pushConstants.mVisibleMeshletIndexTo;
@@ -54,12 +59,20 @@ void main()
 		//meshletVisible = meshletVisible && !coneCull(vec3(transformationMatrix * vec4(center,1)), radius, mat3(transformationMatrix) * cone_axis, cone_cutoff, ubo.mCameraCenter);
 	}
 
-	uint insertIndex = subgroupExclusiveAdd(uint(meshletVisible));
-	meshletIndices[insertIndex] = meshletIndex;		
+	if (meshletVisible)
+	{
+		uint insertIndex = atomicAdd(numMeshlets, 1);
+		meshletIndices[insertIndex] = meshletIndex;
+	}
 
-	// Find out how many meshlets been added to the array by the other invocations in this subgroup:
-	uvec4 voteResult  = subgroupBallot(meshletVisible);
-	uint  numMeshlets = subgroupBallotBitCount(voteResult);
+//	uint insertIndex = subgroupExclusiveAdd(uint(meshletVisible));
+//	meshletIndices[insertIndex] = meshletIndex;		
+//
+//	// Find out how many meshlets been added to the array by the other invocations in this subgroup:
+//	uvec4 voteResult  = subgroupBallot(meshletVisible);
+//	uint  numMeshlets = subgroupBallotBitCount(voteResult);
+
+	barrier(); // for numMeshlets
 
 	// With this number at hand, spawn the same amount of mesh shader GROUPS from this task shader:
 	// I.e., in total, we spawn (numMeshlets * NUM_MESH_SHADER_INVOCATIONS * 1 * 1) invocations.

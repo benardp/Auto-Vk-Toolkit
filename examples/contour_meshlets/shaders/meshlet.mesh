@@ -94,8 +94,8 @@ shared vec3 vertexPos[64];
 void main() 
 {
 	uint meshletIndex = meshletIndices[gl_WorkGroupID.x];
-	// uint mhash = hash(meshletIndex);
-	// vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
+	uint mhash = hash(meshletIndex);
+	vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
 
 	uint invocationId = gl_LocalInvocationID.x;
 
@@ -188,7 +188,7 @@ void main()
 		v_out[i].normalWS = mat3(transformationMatrix) * aniNrm;
 		v_out[i].texCoord = texelFetch(texCoordsBuffers[texelBufferIndex], int(vi)).st;
 		v_out[i].materialIndex = int(materialIndex);
-		v_out[i].color = meshletcolors[meshletIndex % MAX_COLORS];
+		v_out[i].color = mcolor; //meshletcolors[meshletIndex % MAX_COLORS];
 	}
  
 	barrier();

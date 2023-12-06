@@ -20,6 +20,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\..\examples\contour_meshlets\shaders\cpu_gpu_shared_config.h" />
     <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.1.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.2.cmcp" />
     <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.4.cmcp" />
     <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.6.cmcp" />
     <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.9.cmcp" />
@@ -36,14 +37,13 @@
     <None Include="..\..\..\examples\contour_meshlets\shaders\mesh.glsl">
       <FileType>Document</FileType>
     </None>
+    <None Include="..\..\..\examples\contour_meshlets\shaders\debug.mesh" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\assets\3rd_party\models\dancing_crab\crab.fbx" />
     <None Include="..\..\..\examples\contour_meshlets\shaders\diffuse_shading_fixed_lightsource.frag" />
     <None Include="..\..\..\examples\contour_meshlets\shaders\glsl_helpers.glsl" />
     <None Include="..\..\..\examples\contour_meshlets\shaders\meshlet.mesh" />
-    <None Include="..\..\..\examples\contour_meshlets\shaders\meshlet.nv.mesh" />
-    <None Include="..\..\..\examples\contour_meshlets\shaders\meshlet.nv.task" />
     <None Include="..\..\..\examples\contour_meshlets\shaders\meshlet.task" />
   </ItemGroup>
   <ItemGroup>

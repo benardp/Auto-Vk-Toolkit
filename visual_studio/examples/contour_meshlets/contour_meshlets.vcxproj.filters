@@ -25,12 +25,6 @@
     <None Include="..\..\..\examples\contour_meshlets\shaders\meshlet.mesh">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\..\..\examples\contour_meshlets\shaders\meshlet.nv.mesh">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\..\examples\contour_meshlets\shaders\meshlet.nv.task">
-      <Filter>shaders</Filter>
-    </None>
     <None Include="..\..\..\examples\contour_meshlets\shaders\meshlet.task">
       <Filter>shaders</Filter>
     </None>
@@ -86,6 +80,12 @@
       <Filter>assets</Filter>
     </None>
     <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.B.cmcp">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\examples\contour_meshlets\shaders\debug.mesh">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.2.cmcp">
       <Filter>assets</Filter>
     </None>
   </ItemGroup>

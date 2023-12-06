@@ -228,13 +228,13 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		float* dataPassBufferFloat = (float*)dataPassBuffers[0];
 		int* dataPassBufferInt = (int*)dataPassBuffers[1];
 		SceneData* sceneData = CMCInternal_GetSceneData();
-		char* filepath = (char*) "assets/MESH_bunny.cmcr";
+		char* filepath = (char*) "assets/MESH_bun_zipper.cmcr";
 		MeshletData* mData = CMCInternal_LoadNewMeshletDataFromDisk(filepath);
 		ProxyMesh* pMesh = CMCInternal_LoadProxyMeshFromBasePath(mData, (mData->proxyMeshes + LODMETHOD_PATCHFUSION_GPU_REDUCEDSPHERE), LODMETHOD_PATCHFUSION_GPU_REDUCEDSPHERE, filepath);
 
 
 
-		auto model = avk::model_t::load_from_file("assets/bun_zipper.ply", aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_PreTransformVertices);
+		auto model = avk::model_t::load_from_file("assets/stanford_bunny2.obj", aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_PreTransformVertices);
 		loadedModels.push_back(std::move(model));
 
 		std::vector<avk::material_config> allMatConfigs; // <-- Gather the material config from all models to be loaded
@@ -385,184 +385,188 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 						drawCallData.mMaterialIndex++;
 					}
 
-					auto selection = avk::make_model_references_and_mesh_indices_selection(curModel, meshIndex);
-					// Build meshlets:
-					// std::tie(drawCallData.mPositions, drawCallData.mIndices) = avk::get_vertices_and_indices(selection);
-					// drawCallData.mNormals = avk::get_normals(selection);
-					// drawCallData.mTexCoords = avk::get_2d_texture_coordinates(selection, 0);
-					// Empty bone indices and weights too
-					//drawCallData.mBoneIndices.resize(drawCallData.mPositions.size());
-					//drawCallData.mBoneWeights.resize(drawCallData.mPositions.size()) ;
+					std::vector<avk::meshlet> cpuMeshlets;
 
-					// create selection for the meshlets
-					auto meshletSelection = avk::make_models_and_mesh_indices_selection(curModel, meshIndex);
+					if (mBuildMeshlets) {
 
-					auto meshoptimizer_clustering = [&](const std::vector<glm::vec3>& tVertices, const std::vector<uint32_t>& aIndices,
-						const avk::model_t& aModel, std::optional<avk::mesh_index_t> aMeshIndex,
-						uint32_t aMaxVertices, uint32_t aMaxIndices) {
+						auto selection = avk::make_model_references_and_mesh_indices_selection(curModel, meshIndex);
+						// Build meshlets:
+						std::tie(drawCallData.mPositions, drawCallData.mIndices) = avk::get_vertices_and_indices(selection);
+						drawCallData.mNormals = avk::get_normals(selection);
+						drawCallData.mTexCoords = avk::get_2d_texture_coordinates(selection, 0);
+						// Empty bone indices and weights too
+						drawCallData.mBoneIndices.resize(drawCallData.mPositions.size());
+						drawCallData.mBoneWeights.resize(drawCallData.mPositions.size());
 
-							// definitions
-							size_t max_triangles = aMaxIndices / 3;
-							const float cone_weight = 0.5f;
+						// create selection for the meshlets
+						auto meshletSelection = avk::make_models_and_mesh_indices_selection(curModel, meshIndex);
 
-							// get the maximum number of meshlets that could be generated
-							size_t max_meshlets = meshopt_buildMeshletsBound(aIndices.size(), aMaxVertices, max_triangles);
-							std::vector<meshopt_Meshlet> meshlets(max_meshlets);
-							std::vector<unsigned int> meshlet_vertices(max_meshlets * aMaxVertices);
-							std::vector<unsigned char> meshlet_triangles(max_meshlets * max_triangles * 3);
+						auto meshoptimizer_clustering = [&](const std::vector<glm::vec3>& tVertices, const std::vector<uint32_t>& aIndices,
+							const avk::model_t& aModel, std::optional<avk::mesh_index_t> aMeshIndex,
+							uint32_t aMaxVertices, uint32_t aMaxIndices) {
 
-							// let meshoptimizer build the meshlets for us
-							size_t meshlet_count = meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(),
-								aIndices.data(), aIndices.size(), &tVertices[0].x, tVertices.size(), sizeof(glm::vec3),
-								aMaxVertices, max_triangles, cone_weight);
+								// definitions
+								size_t max_triangles = aMaxIndices / 3;
+								const float cone_weight = 0.5f;
 
-							// copy the data over to Auto-Vk-Toolkit's meshlet structure
-							std::vector<avk::meshlet> generatedMeshlets(meshlet_count);
-							generatedMeshlets.resize(meshlet_count);
-							for (int k = 0; k < meshlet_count; k++) {
-								auto& m = meshlets[k];
-								auto& gm = generatedMeshlets[k];
+								// get the maximum number of meshlets that could be generated
+								size_t max_meshlets = meshopt_buildMeshletsBound(aIndices.size(), aMaxVertices, max_triangles);
+								std::vector<meshopt_Meshlet> meshlets(max_meshlets);
+								std::vector<unsigned int> meshlet_vertices(max_meshlets * aMaxVertices);
+								std::vector<unsigned char> meshlet_triangles(max_meshlets * max_triangles * 3);
 
-								// compute bounds
-								meshopt_Bounds bounds = meshopt_computeMeshletBounds(&(meshlet_vertices[m.vertex_offset]), &(meshlet_triangles[m.triangle_offset]), m.triangle_count, &tVertices[0].x, tVertices.size(), sizeof(glm::vec3));
-								gm.center = glm::vec3(bounds.center[0], bounds.center[1], bounds.center[2]);
-								gm.radius = bounds.radius;
-								gm.coneAxis = glm::vec3(bounds.cone_axis[0], bounds.cone_axis[1], bounds.cone_axis[2]);
-								gm.coneCutoff = bounds.cone_cutoff;
+								// let meshoptimizer build the meshlets for us
+								size_t meshlet_count = meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(),
+									aIndices.data(), aIndices.size(), &tVertices[0].x, tVertices.size(), sizeof(glm::vec3),
+									aMaxVertices, max_triangles, cone_weight);
 
-								std::map<avk::model_t::Edge, avk::model_t::Neighbors, avk::model_t::CompareEdges> indexMap;
-								std::vector< std::pair<avk::model_t::Edge, unsigned int> > boundaryEdges;
-								for (unsigned int i = 0; i < m.triangle_count; ++i) {
-									glm::ivec3 face;
-									for (unsigned int f = 0; f < 3; ++f) {
-										face[f] = meshlet_triangles[m.triangle_offset + i * 3 + f];
+								// copy the data over to Auto-Vk-Toolkit's meshlet structure
+								std::vector<avk::meshlet> generatedMeshlets(meshlet_count);
+								generatedMeshlets.resize(meshlet_count);
+								for (int k = 0; k < meshlet_count; k++) {
+									auto& m = meshlets[k];
+									auto& gm = generatedMeshlets[k];
+
+									// compute bounds
+									meshopt_Bounds bounds = meshopt_computeMeshletBounds(&(meshlet_vertices[m.vertex_offset]), &(meshlet_triangles[m.triangle_offset]), m.triangle_count, &tVertices[0].x, tVertices.size(), sizeof(glm::vec3));
+									gm.center = glm::vec3(bounds.center[0], bounds.center[1], bounds.center[2]);
+									gm.radius = bounds.radius;
+									gm.coneAxis = glm::vec3(bounds.cone_axis[0], bounds.cone_axis[1], bounds.cone_axis[2]);
+									gm.coneCutoff = bounds.cone_cutoff;
+
+									std::map<avk::model_t::Edge, avk::model_t::Neighbors, avk::model_t::CompareEdges> indexMap;
+									std::vector< std::pair<avk::model_t::Edge, unsigned int> > boundaryEdges;
+									for (unsigned int i = 0; i < m.triangle_count; ++i) {
+										glm::ivec3 face;
+										for (unsigned int f = 0; f < 3; ++f) {
+											face[f] = meshlet_triangles[m.triangle_offset + i * 3 + f];
+										}
+										avk::model_t::Edge e1(face[0], face[1]);
+										avk::model_t::Edge e2(face[1], face[2]);
+										avk::model_t::Edge e3(face[2], face[0]);
+
+										indexMap[e1].AddNeigbor(i);
+										indexMap[e2].AddNeigbor(i);
+										indexMap[e3].AddNeigbor(i);
 									}
-									avk::model_t::Edge e1(face[0], face[1]);
-									avk::model_t::Edge e2(face[1], face[2]);
-									avk::model_t::Edge e3(face[2], face[0]);
 
-									indexMap[e1].AddNeigbor(i);
-									indexMap[e2].AddNeigbor(i);
-									indexMap[e3].AddNeigbor(i);
+									for (const auto& e : indexMap) {
+										// meshlet boundary edges
+										if (e.second.n1 == (unsigned int)-1) {
+											boundaryEdges.push_back(std::make_pair(e.first, e.second.n2));
+											continue;
+										}
+										if (e.second.n2 == (unsigned int)-1) {
+											boundaryEdges.push_back(std::make_pair(e.first, e.second.n1));
+											continue;
+										}
+										uint32_t v_a = e.first.a;
+										uint32_t v_b = e.first.b;
+										uint32_t v_c, v_d;
+										for (unsigned int k = 0; k < 3; k++) {
+											uint32_t otherVertexIndex = meshlet_triangles[m.triangle_offset + 3 * e.second.n1 + k];
+											if (otherVertexIndex != v_a && otherVertexIndex != v_b) {
+												v_c = otherVertexIndex;
+											}
+											otherVertexIndex = meshlet_triangles[m.triangle_offset + 3 * e.second.n2 + k];
+											if (otherVertexIndex != v_a && otherVertexIndex != v_b) {
+												v_d = otherVertexIndex;
+											}
+										}
+										gm.mIndices.push_back(v_a);
+										gm.mIndices.push_back(v_b);
+										gm.mIndices.push_back(v_c);
+										gm.mIndices.push_back(v_d);
+
+									}
+
+									gm.mVertices.resize(m.vertex_count);
+									std::ranges::copy(meshlet_vertices.begin() + m.vertex_offset,
+										meshlet_vertices.begin() + m.vertex_offset + m.vertex_count,
+										gm.mVertices.begin());
+
+									for (const auto& pair : boundaryEdges) {
+										avk::model_t::Edge mesh_edge = pair.first;
+										uint32_t v_a = meshlet_vertices[m.vertex_offset + mesh_edge.a];
+										uint32_t v_b = meshlet_vertices[m.vertex_offset + mesh_edge.b];
+										uint32_t v_c = -1, lv_c;
+										for (unsigned int k = 0; k < 3; k++) {
+											lv_c = meshlet_triangles[m.triangle_offset + 3 * pair.second + k];
+											v_c = meshlet_vertices[m.vertex_offset + lv_c];
+											if (v_c != v_a && v_c != v_b) {
+												break;
+											}
+										}
+										assert(v_c != -1);
+										avk::model_t::Edge e(v_a, v_b);
+										assert(adjacency.find(e) != adjacency.end());
+										if (visitedEdges.find(e) != visitedEdges.end()) {
+											continue;
+										}
+										visitedEdges[e] = true;
+										avk::model_t::Neighbors neighbours = adjacency[e];
+										uint32_t n = -1;
+										for (unsigned int k = 0; k < 3; k++) {
+											if (aIndices[neighbours.n1 * 3 + k] == v_c) {
+												n = neighbours.n2;
+												break;
+											}
+											if (aIndices[neighbours.n2 * 3 + k] == v_c) {
+												n = neighbours.n1;
+												break;
+											}
+										}
+										assert(n != -1);
+										uint32_t v_d = -1;
+										for (unsigned int k = 0; k < 3; k++) {
+											v_d = aIndices[n * 3 + k];
+											if (v_d != v_a && v_d != v_b) {
+												break;
+											}
+										}
+										assert(v_d != -1);
+										gm.mIndices.push_back(mesh_edge.a);
+										gm.mIndices.push_back(mesh_edge.b);
+										gm.mIndices.push_back(lv_c);
+										gm.mIndices.push_back(gm.mVertices.size());
+										gm.mVertices.push_back(v_d);
+									}
+
+									gm.mIndexCount = gm.mIndices.size();
+									gm.mVertexCount = gm.mVertices.size();
+
+									//float radius = 0.0;
+									//glm::vec3 center(0);
+									//for (unsigned int v : gm.mVertices) {
+									//	center += tVertices[v];
+									//}
+									//center /= gm.mVertexCount;
+
+									//for (unsigned int v : gm.mVertices) {
+									//	radius = std::max(radius, glm::length(tVertices[v] - center));
+									//}
+
+									//gm.center = center;
+									//gm.radius = radius;
+
+									assert(gm.mVertexCount <= 128);
+
+
+									/*
+									gm.mIndexCount = m.triangle_count * 3;
+									gm.mVertexCount = m.vertex_count;
+									gm.mVertices.resize(m.vertex_count);
+									gm.mIndices.resize(gm.mIndexCount);
+									std::ranges::copy(meshlet_vertices.begin() + m.vertex_offset,
+										meshlet_vertices.begin() + m.vertex_offset + m.vertex_count,
+										gm.mVertices.begin());
+									std::ranges::copy(meshlet_triangles.begin() + m.triangle_offset,
+										meshlet_triangles.begin() + m.triangle_offset + gm.mIndexCount,
+										gm.mIndices.begin()); */
 								}
 
-								for (const auto& e : indexMap) {
-									// meshlet boundary edges
-									if (e.second.n1 == (unsigned int)-1) {
-										boundaryEdges.push_back(std::make_pair(e.first, e.second.n2));
-										continue;
-									}
-									if (e.second.n2 == (unsigned int)-1) {
-										boundaryEdges.push_back(std::make_pair(e.first, e.second.n1));
-										continue;
-									}
-									uint32_t v_a = e.first.a;
-									uint32_t v_b = e.first.b;
-									uint32_t v_c, v_d;
-									for (unsigned int k = 0; k < 3; k++) {
-										uint32_t otherVertexIndex = meshlet_triangles[m.triangle_offset + 3 * e.second.n1 + k];
-										if (otherVertexIndex != v_a && otherVertexIndex != v_b) {
-											v_c = otherVertexIndex;
-										}
-										otherVertexIndex = meshlet_triangles[m.triangle_offset + 3 * e.second.n2 + k];
-										if (otherVertexIndex != v_a && otherVertexIndex != v_b) {
-											v_d = otherVertexIndex;
-										}
-									}
-									gm.mIndices.push_back(v_a);
-									gm.mIndices.push_back(v_b);
-									gm.mIndices.push_back(v_c);
-									gm.mIndices.push_back(v_d);
-
-								}
-
-								gm.mVertices.resize(m.vertex_count);
-								std::ranges::copy(meshlet_vertices.begin() + m.vertex_offset,
-									meshlet_vertices.begin() + m.vertex_offset + m.vertex_count,
-									gm.mVertices.begin());
-
-								for (const auto& pair : boundaryEdges) {
-									avk::model_t::Edge mesh_edge = pair.first;
-									uint32_t v_a = meshlet_vertices[m.vertex_offset + mesh_edge.a];
-									uint32_t v_b = meshlet_vertices[m.vertex_offset + mesh_edge.b];
-									uint32_t v_c = -1, lv_c;
-									for (unsigned int k = 0; k < 3; k++) {
-										lv_c = meshlet_triangles[m.triangle_offset + 3 * pair.second + k];
-										v_c = meshlet_vertices[m.vertex_offset + lv_c];
-										if (v_c != v_a && v_c != v_b) {
-											break;
-										}
-									}
-									assert(v_c != -1);
-									avk::model_t::Edge e(v_a, v_b);
-									assert(adjacency.find(e) != adjacency.end());
-									if (visitedEdges.find(e) != visitedEdges.end()) {
-										continue;
-									}
-									visitedEdges[e] = true;
-									avk::model_t::Neighbors neighbours = adjacency[e];
-									uint32_t n = -1;
-									for (unsigned int k = 0; k < 3; k++) {
-										if (aIndices[neighbours.n1 * 3 + k] == v_c) {
-											n = neighbours.n2;
-											break;
-										}
-										if (aIndices[neighbours.n2 * 3 + k] == v_c) {
-											n = neighbours.n1;
-											break;
-										}
-									}
-									assert(n != -1);
-									uint32_t v_d = -1;
-									for (unsigned int k = 0; k < 3; k++) {
-										v_d = aIndices[n * 3 + k];
-										if (v_d != v_a && v_d != v_b) {
-											break;
-										}
-									}
-									assert(v_d != -1);
-									gm.mIndices.push_back(mesh_edge.a);
-									gm.mIndices.push_back(mesh_edge.b);
-									gm.mIndices.push_back(lv_c);
-									gm.mIndices.push_back(gm.mVertices.size());
-									gm.mVertices.push_back(v_d);
-								}
-
-								gm.mIndexCount = gm.mIndices.size();
-								gm.mVertexCount = gm.mVertices.size();
-
-								//float radius = 0.0;
-								//glm::vec3 center(0);
-								//for (unsigned int v : gm.mVertices) {
-								//	center += tVertices[v];
-								//}
-								//center /= gm.mVertexCount;
-
-								//for (unsigned int v : gm.mVertices) {
-								//	radius = std::max(radius, glm::length(tVertices[v] - center));
-								//}
-
-								//gm.center = center;
-								//gm.radius = radius;
-
-								assert(gm.mVertexCount <= 128);
-
-
-								/*
-								gm.mIndexCount = m.triangle_count * 3;
-								gm.mVertexCount = m.vertex_count;
-								gm.mVertices.resize(m.vertex_count);
-								gm.mIndices.resize(gm.mIndexCount);
-								std::ranges::copy(meshlet_vertices.begin() + m.vertex_offset,
-									meshlet_vertices.begin() + m.vertex_offset + m.vertex_count,
-									gm.mVertices.begin());
-								std::ranges::copy(meshlet_triangles.begin() + m.triangle_offset,
-									meshlet_triangles.begin() + m.triangle_offset + gm.mIndexCount,
-									gm.mIndices.begin()); */
-							}
-
-							return generatedMeshlets;
-						};
+								return generatedMeshlets;
+							};
 
 						/* auto meshcontours_LOD = [&](const std::vector<glm::vec3>& tVertices, const std::vector<uint32_t>& aIndices,
 							const avk::model_t& aModel, std::optional<avk::mesh_index_t> aMeshIndex,
@@ -586,7 +590,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 								mData.restPosition = (float*) &(tVertices[0][0]);
 								mData.topoFaceVertex = (unsigned int *)aIndices.data();
 								mData.cdVertexCoord = (float*)&(tVertices[0][0]);
-								
+
 								// Construct winged edge
 								int* topoWingedEdgeVVVVFF = (int*)malloc(sizeof(int) * 6 * mData.nbEdges);
 								int* topoWingedEdgeVVVV = (int*)malloc(sizeof(int) * 4 * mData.nbEdges);
@@ -628,15 +632,15 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 												(aIndices[3 * faceIndex + 2] == vertexIndexB && aIndices[3 * faceIndex + 0] == vertexIndexA))
 												flipIndicator = -1;
 										}
-										
+
 										topoWingedEdgeVVVVFF[6 * i + 2 + j] = vertexIndex;
 										topoWingedEdgeVVVVFF[6 * i + 4 + j] = faceIndex;
-										
+
 										topoWingedEdgeVVVV[4 * i + 2 + j] = vertexIndex;
-										
+
 										topoWingedEdgeVVVVI[5 * i + 2 + j] = vertexIndex;
 										topoWingedEdgeVVVVI[5 * i + 4] = flipIndicator;
-										
+
 										topoWingedEdgeVVFF[4 * i + 2 + j] = faceIndex;
 									}
 									++i;
@@ -664,43 +668,106 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 							};*/
 
-					// auto cpuMeshlets = avk::divide_into_meshlets(meshletSelection, meshoptimizer_clustering, true, 32, 16*4*3);
-					
-					drawCallData.mPositions.resize(mData->nbVertices);
-					drawCallData.mNormals.resize(mData->nbVertices);
-					for (size_t k = 0; k < mData->nbVertices; ++k) {
-						drawCallData.mPositions[k] = glm::vec3(mData->restPosition[3 * k], mData->restPosition[3 * k + 1], mData->restPosition[3 * k + 2]);
+						cpuMeshlets = avk::divide_into_meshlets(meshletSelection, meshoptimizer_clustering, true, 32, 16 * 4 * 3);
+
 					}
-					drawCallData.mIndices = std::move(std::vector<uint32_t>(mData->topoFaceVertex, mData->topoFaceVertex + mData->nbFaces * 3));
-					drawCallData.mTexCoords.resize(mData->nbVertices);
-					drawCallData.mBoneIndices.resize(mData->nbVertices);
-					drawCallData.mBoneWeights.resize(mData->nbVertices);
+					else {
 
-					std::vector<avk::meshlet> cpuMeshlets(pMesh->nbPatches);
-					std::vector<avk::meshlet> extraMeshlets;
-					curModel.enable_shared_ownership();
-					for (size_t k = 0; k < pMesh->nbPatches; ++k) {
-						avk::meshlet* cpuMeshlet = &cpuMeshlets[k];
-						auto& patch = pMesh->patches[k];
+						drawCallData.mPositions.resize(mData->nbVertices);
+						drawCallData.mNormals.resize(mData->nbVertices);
+						for (size_t k = 0; k < mData->nbVertices; ++k) {
+							drawCallData.mPositions[k] = glm::vec3(mData->restPosition[3 * k], mData->restPosition[3 * k + 1], mData->restPosition[3 * k + 2]);
+						}
+						drawCallData.mIndices = std::move(std::vector<uint32_t>(mData->topoFaceVertex, mData->topoFaceVertex + mData->nbFaces * 3));
+						drawCallData.mTexCoords.resize(mData->nbVertices);
+						drawCallData.mBoneIndices.resize(mData->nbVertices);
+						drawCallData.mBoneWeights.resize(mData->nbVertices);
 
-						int ctrlIDA = patch.patchBasisVerticesID[0];
-						int ctrlIDB = patch.patchBasisVerticesID[1];
-						int ctrlIDC = patch.patchBasisVerticesID[2];
-						vec3 patchBasisPosA = vec3(mData->restPosition[3 * ctrlIDA], mData->restPosition[3 * ctrlIDA + 1], mData->restPosition[3 * ctrlIDA + 2]);
-						vec3 patchBasisPosB = vec3(mData->restPosition[3 * ctrlIDB], mData->restPosition[3 * ctrlIDB + 1], mData->restPosition[3 * ctrlIDB + 2]);
-						vec3 patchBasisPosC = vec3(mData->restPosition[3 * ctrlIDC], mData->restPosition[3 * ctrlIDC + 1], mData->restPosition[3 * ctrlIDC + 2]);
-						vec3 patchBasisX = (patchBasisPosB - patchBasisPosA).normalized();
-						vec3 patchBasisY = (patchBasisPosC - patchBasisPosA);
-						patchBasisY = (patchBasisY - patchBasisX * patchBasisX.dot(patchBasisY)).normalized();
-						vec3 patchBasisZ = patchBasisY.cross(patchBasisX).normalized();
-						vec3 sphereOrigin = patchBasisPosA + patch.boundingSphereOriginInPatchBasis.x() * patchBasisX + patch.boundingSphereOriginInPatchBasis.y() * patchBasisY + patch.boundingSphereOriginInPatchBasis.z() * patchBasisZ;
-						vec3 normal = patch.ndfConeDirectionInPatchBasis.x() * patchBasisX + patch.ndfConeDirectionInPatchBasis.y() * patchBasisY + patch.ndfConeDirectionInPatchBasis.z() * patchBasisZ;
+						cpuMeshlets.resize(pMesh->nbPatches);
+						std::vector<avk::meshlet> extraMeshlets;
+						curModel.enable_shared_ownership();
+						for (size_t k = 0; k < pMesh->nbPatches; ++k) {
+							avk::meshlet* cpuMeshlet = &cpuMeshlets[k];
+							auto& patch = pMesh->patches[k];
 
-						std::map<int, unsigned int> indicesMap;
-						for (size_t i = 0; i < patch.nbFreeEdges; ++i) {
+							int ctrlIDA = patch.patchBasisVerticesID[0];
+							int ctrlIDB = patch.patchBasisVerticesID[1];
+							int ctrlIDC = patch.patchBasisVerticesID[2];
+							vec3 patchBasisPosA = vec3(mData->restPosition[3 * ctrlIDA], mData->restPosition[3 * ctrlIDA + 1], mData->restPosition[3 * ctrlIDA + 2]);
+							vec3 patchBasisPosB = vec3(mData->restPosition[3 * ctrlIDB], mData->restPosition[3 * ctrlIDB + 1], mData->restPosition[3 * ctrlIDB + 2]);
+							vec3 patchBasisPosC = vec3(mData->restPosition[3 * ctrlIDC], mData->restPosition[3 * ctrlIDC + 1], mData->restPosition[3 * ctrlIDC + 2]);
+							vec3 patchBasisX = (patchBasisPosB - patchBasisPosA).normalized();
+							vec3 patchBasisY = (patchBasisPosC - patchBasisPosA);
+							patchBasisY = (patchBasisY - patchBasisX * patchBasisX.dot(patchBasisY)).normalized();
+							vec3 patchBasisZ = patchBasisY.cross(patchBasisX).normalized();
+							vec3 sphereOrigin = patchBasisPosA + patch.boundingSphereOriginInPatchBasis.x() * patchBasisX + patch.boundingSphereOriginInPatchBasis.y() * patchBasisY + patch.boundingSphereOriginInPatchBasis.z() * patchBasisZ;
+							vec3 normal = patch.ndfConeDirectionInPatchBasis.x() * patchBasisX + patch.ndfConeDirectionInPatchBasis.y() * patchBasisY + patch.ndfConeDirectionInPatchBasis.z() * patchBasisZ;
+
+							Eigen::AlignedBox3d bbox;
+
+							std::map<int, unsigned int> indicesMap;
+							std::vector<vec3> pos;
+							for (size_t i = 0; i < patch.nbFreeEdges; ++i) {
+								for (size_t j = 0; j < 4; ++j) {
+									int idx = patch.patchPRTOTopoBufferVVVV[4 * i + j];
+									assert(idx < mData->nbVertices);
+									if (idx == -1) {
+										idx = 0; // boundary
+									}
+									if (indicesMap.find(idx) == indicesMap.end()) {
+										indicesMap[idx] = cpuMeshlet->mVertices.size();
+										cpuMeshlet->mVertices.push_back(idx);
+										pos.push_back(vec3(mData->restPosition[3 * idx], mData->restPosition[3 * idx + 1], mData->restPosition[3 * idx + 2]));
+									}
+									cpuMeshlet->mIndices.push_back(indicesMap[idx]);
+								}
+								int idxA = patch.patchPRTOTopoBufferVVVV[4 * i];
+								int idxB = patch.patchPRTOTopoBufferVVVV[4 * i + 1];
+								vec3 A(mData->restPosition[3 * idxA], mData->restPosition[3 * idxA + 1], mData->restPosition[3 * idxA + 2]);
+								vec3 B(mData->restPosition[3 * idxB], mData->restPosition[3 * idxB + 1], mData->restPosition[3 * idxB + 2]);
+								bbox.extend(0.5 * (A + B));
+								if (cpuMeshlet->mVertices.size() >= 60 || cpuMeshlet->mIndices.size() / 4 == 126) {
+									//LOG_WARNING(std::format("Patch too big {} vertices, {} faces", cpuMeshlet->mVertices.size(), cpuMeshlet->mIndices.size() / 4));
+									cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
+									cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
+
+									cpuMeshlet->center = glm::vec3(bbox.center().x(), bbox.center().y(), bbox.center().z());
+									cpuMeshlet->radius = 0;
+									for (auto& p : pos) {
+										cpuMeshlet->radius = std::max(cpuMeshlet->radius, float((p - bbox.center()).norm()));
+									}
+
+									/*cpuMeshlet->center = glm::vec3(sphereOrigin.x(), sphereOrigin.y(), sphereOrigin.z());
+									cpuMeshlet->radius = patch.boundingSphereRadius;*/
+									cpuMeshlet->coneAxis = glm::vec3(normal.x(), normal.y(), normal.z());
+									cpuMeshlet->coneCutoff = patch.ndfConeAngleRadians;
+									//break;
+									cpuMeshlet = &extraMeshlets.emplace_back();
+									indicesMap.clear();
+									bbox.setEmpty();
+								}
+							}
+
+							cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
+							cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
+
+							cpuMeshlet->center = glm::vec3(bbox.center().x(), bbox.center().y(), bbox.center().z());
+							cpuMeshlet->radius = 0;
+							for (auto& p : pos) {
+								cpuMeshlet->radius = std::max(cpuMeshlet->radius, float((p - bbox.center()).norm()));
+							}
+							/*cpuMeshlet->center = glm::vec3(sphereOrigin.x(), sphereOrigin.y(), sphereOrigin.z());
+							cpuMeshlet->radius = patch.boundingSphereRadius;*/
+							cpuMeshlet->coneAxis = glm::vec3(normal.x(), normal.y(), normal.z());
+							cpuMeshlet->coneCutoff = patch.ndfConeAngleRadians;
+						}
+
+						for (size_t k = 0; k < pMesh->nbFreeEdges; k++) {
+							avk::meshlet* cpuMeshlet = &extraMeshlets.emplace_back();
+							int eId = pMesh->freeEdgesIDs[k];
+							std::map<int, unsigned int> indicesMap;
 							for (size_t j = 0; j < 4; ++j) {
-								int idx = patch.patchPRTOTopoBufferVVVV[4 * i + j];
-								assert(idx < mData->nbVertices);
+								int idx = mData->topoWingedEdgeVVVV[4 * eId + j];
 								if (idx == -1) {
 									idx = 0; // boundary
 								}
@@ -709,61 +776,24 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 									cpuMeshlet->mVertices.push_back(idx);
 								}
 								cpuMeshlet->mIndices.push_back(indicesMap[idx]);
-							}
-							if (cpuMeshlet->mVertices.size() >= 60 || cpuMeshlet->mIndices.size() / 4 == 126) {
-								//LOG_WARNING(std::format("Patch too big {} vertices, {} faces", cpuMeshlet->mVertices.size(), cpuMeshlet->mIndices.size() / 4));
-								cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
-								cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
+								if (cpuMeshlet->mVertices.size() >= 60 || cpuMeshlet->mIndices.size() / 4 == 126) {
+									//LOG_WARNING(std::format("Patch too big {} vertices, {} faces", cpuMeshlet->mVertices.size(), cpuMeshlet->mIndices.size() / 4));
+									cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
+									cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
 
-								cpuMeshlet->center = glm::vec3(sphereOrigin.x(), sphereOrigin.y(), sphereOrigin.z());
-								cpuMeshlet->radius = patch.boundingSphereRadius;
-								cpuMeshlet->coneAxis = glm::vec3(normal.x(), normal.y(), normal.z());
-								cpuMeshlet->coneCutoff = patch.ndfConeAngleRadians;
-								//break;
-								cpuMeshlet = &extraMeshlets.emplace_back();
-								indicesMap.clear();
+									cpuMeshlet = &extraMeshlets.emplace_back();
+									indicesMap.clear();
+								}
 							}
+							cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
+							cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
+
+							cpuMeshlet->coneCutoff = 3.14;
+							cpuMeshlet->radius = 0;
 						}
 
-						cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
-						cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
-
-						cpuMeshlet->center = glm::vec3(sphereOrigin.x(), sphereOrigin.y(), sphereOrigin.z());
-						cpuMeshlet->radius = patch.boundingSphereRadius;
-						cpuMeshlet->coneAxis = glm::vec3(normal.x(), normal.y(), normal.z());
-						cpuMeshlet->coneCutoff = patch.ndfConeAngleRadians;
+						cpuMeshlets.insert(cpuMeshlets.begin(), std::make_move_iterator(extraMeshlets.begin()), std::make_move_iterator(extraMeshlets.end()));
 					}
-
-					for (size_t k = 0; k < pMesh->nbFreeEdges; k++) {
-						avk::meshlet* cpuMeshlet = &extraMeshlets.emplace_back();
-						int eId = pMesh->freeEdgesIDs[k];
-						std::map<int, unsigned int> indicesMap;
-						for (size_t j = 0; j < 4; ++j) {
-							int idx = mData->topoWingedEdgeVVVV[4 * eId + j];
-							if (idx == -1) {
-								idx = 0; // boundary
-							}
-							if (indicesMap.find(idx) == indicesMap.end()) {
-								indicesMap[idx] = cpuMeshlet->mVertices.size();
-								cpuMeshlet->mVertices.push_back(idx);
-							}
-							cpuMeshlet->mIndices.push_back(indicesMap[idx]);
-							if (cpuMeshlet->mVertices.size() >= 60 || cpuMeshlet->mIndices.size() / 4 == 126) {
-								//LOG_WARNING(std::format("Patch too big {} vertices, {} faces", cpuMeshlet->mVertices.size(), cpuMeshlet->mIndices.size() / 4));
-								cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
-								cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
-
-								cpuMeshlet = &extraMeshlets.emplace_back();
-								indicesMap.clear();
-							}
-						}
-						cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
-						cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
-
-						cpuMeshlet->coneCutoff = 3.14;
-					}
-
-					cpuMeshlets.insert(cpuMeshlets.begin(), std::make_move_iterator(extraMeshlets.begin()), std::make_move_iterator(extraMeshlets.end()));
 
 #if !USE_REDIRECTED_GPU_DATA
 #if USE_CACHE
@@ -943,22 +973,15 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mUpdater.emplace();
 		mUpdater->on(avk::shader_files_changed_event(mPipelineExt.as_reference())).update(mPipelineExt);
 
-		if (avk::context().supports_mesh_shader_nv(avk::context().physical_device())) {
-			vk::PhysicalDeviceMeshShaderPropertiesNV meshShaderPropsNv{};
-			phProps2.pNext = &meshShaderPropsNv;
-			avk::context().physical_device().getProperties2(&phProps2);
-			mTaskInvocationsNv = meshShaderPropsNv.maxTaskWorkGroupInvocations;
 
-			mPipelineNv = createGraphicsMeshPipeline(
-				"shaders/meshlet.nv.task", "shaders/meshlet.nv.mesh",
-				meshShaderPropsNv.maxTaskWorkGroupInvocations,
-				meshShaderPropsNv.maxMeshWorkGroupInvocations
-			);
+		mPipelineDebug = createGraphicsMeshPipeline(
+			"shaders/meshlet.task", "shaders/cone.mesh", 
+			meshShaderProps.maxPreferredTaskWorkGroupInvocations,
+			meshShaderProps.maxPreferredMeshWorkGroupInvocations
+		);
 
-			mUpdater->on(avk::shader_files_changed_event(mPipelineNv.as_reference())).update(mPipelineNv);
+		mUpdater->on(avk::shader_files_changed_event(mPipelineDebug.as_reference())).update(mPipelineDebug);
 
-			mUseNvPipeline = false;
-		}
 
 		// Add the camera to the composition (and let it handle the updates)
 		mOrbitCam.set_translation({ 0.0f, -1.0f, 8.0f });
@@ -992,9 +1015,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				lastDrawMeshTasksDurationMs = glm::mix(lastDrawMeshTasksDurationMs, mLastDrawMeshTasksDuration * 1e-6 * timestampPeriod, 0.05);
 				ImGui::TextColored(ImVec4(.8f, .1f, .6f, 1.f), "Frame time (timer queries): %.3lf ms", lastFrameDurationMs);
 				ImGui::TextColored(ImVec4(.8f, .1f, .6f, 1.f), "drawMeshTasks took        : %.3lf ms", lastDrawMeshTasksDurationMs);
-				ImGui::Text(                                   "mPipelineStats[0]         : %llu", mPipelineStats[0]);
-				ImGui::Text(                                   "mPipelineStats[1]         : %llu", mPipelineStats[1]);
-				ImGui::Text(                                   "mPipelineStats[2]         : %llu", mPipelineStats[2]);
+				ImGui::Text(                                   "Fragment shader           : %llu", mPipelineStats[0]);
+				ImGui::Text(                                   "Task shader               : %llu", mPipelineStats[1]);
+				ImGui::Text(                                   "Mesh shader               : %llu", mPipelineStats[2]);
 				
 				ImGui::Separator();
 				bool quakeCamEnabled = mQuakeCam.is_enabled();
@@ -1022,12 +1045,10 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				ImGui::Separator();
 
 				ImGui::Separator();
-				if (mUseNvPipeline.has_value()) {
-					int choice = mUseNvPipeline.value() ? 1 : 0;
-					ImGui::Combo("Pipeline", &choice, "VK_EXT_mesh_shader\0VK_NV_mesh_shader\0");
-					mUseNvPipeline = (choice == 1);
-					ImGui::Separator();
-				}
+				int choice = mUseDebugPipeline ? 1 : 0;
+				ImGui::Combo("Pipeline", &choice, "Contours\0Debug\0");
+				mUseDebugPipeline = (choice == 1);
+				ImGui::Separator();
 
 				// Select the range of meshlets to be rendered:
 				ImGui::Checkbox("Highlight meshlets", &mHighlightMeshlets);
@@ -1119,7 +1140,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			mPipelineStats = mPipelineStatsPool->get_results<uint64_t, 3>(inFlightIndex, 1, vk::QueryResultFlagBits::e64);
 		}
 
-		auto& pipeline = mUseNvPipeline.value_or(false) ? mPipelineNv : mPipelineExt;
+		auto& pipeline = mUseDebugPipeline ? mPipelineDebug : mPipelineExt;
 
 		context().record(command::gather(
 			    mPipelineStatsPool->reset(inFlightIndex, 1),
@@ -1161,11 +1182,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					}),
 
 					// Draw all the meshlets with just one single draw call:
-					command::conditional(
-						[this]() { return mUseNvPipeline.value_or(false); },
-						[this]() { return command::draw_mesh_tasks_nv(div_ceil(mNumMeshlets, mTaskInvocationsNv), 0);    },
-						[this]() { return command::draw_mesh_tasks_ext(div_ceil(mNumMeshlets, mTaskInvocationsExt), 1, 1); }
-					)
+					command::draw_mesh_tasks_ext(div_ceil(mNumMeshlets, mTaskInvocationsExt), 1, 1),
 				}),
 
 				mTimestampPool->write_timestamp(firstQueryIndex + 1, stage::mesh_shader),
@@ -1195,7 +1212,7 @@ private: // v== Member variables ==v
 
 	std::vector<data_for_draw_call> mDrawCalls;
 	avk::graphics_pipeline mPipelineExt;
-	avk::graphics_pipeline mPipelineNv;
+	avk::graphics_pipeline mPipelineDebug;
 
 	avk::orbit_camera mOrbitCam;
 	avk::quake_camera mQuakeCam;
@@ -1213,12 +1230,13 @@ private: // v== Member variables ==v
 	std::vector<avk::buffer> mIndicesDataBuffers;
 #endif
 
+	bool mBuildMeshlets = false;
 	bool mHighlightMeshlets = false;
 	bool mCullMeshlets = false;
 	bool mExtractContours = false;
 	int  mShowMeshletsFrom  = 0;
 	int  mShowMeshletsTo    = 0;
-	std::optional<bool> mUseNvPipeline = {};
+	bool mUseDebugPipeline = false;
 
 	avk::query_pool mTimestampPool;
 	uint64_t mLastTimestamp = 0;

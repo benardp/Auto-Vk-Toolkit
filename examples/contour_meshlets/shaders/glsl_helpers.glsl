@@ -25,7 +25,7 @@ bool coneCull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec3
 {
 	vec3 ViewSpine = center - camera_position;
 	//return dot(-ViewSpine, cone_axis) < 0;
-	//return dot(ViewSpine, cone_axis) >= cone_cutoff * length(ViewSpine) + radius;
+	//return abs(dot(ViewSpine, cone_axis)) >= cone_cutoff * length(ViewSpine) + radius;
 	//return dot(ViewSpine, cone_axis) >= sin( acos(cone_cutoff) + asin(radius/length(ViewSpine)) );
 
 	float viewDistance = max(length(ViewSpine), 0.001);
