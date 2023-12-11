@@ -1147,36 +1147,35 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto mainWnd = context().main_window();
 		auto inFlightIndex = mainWnd->current_in_flight_index();
 
-		if (mAnimate) {
-			// Animate all the meshes
-			for (auto& model : mAnimatedModels) {
-				auto& animation = std::get<animated_model_data>(model).mAnimation;
-				auto& clip = std::get<animated_model_data>(model).mClip;
-				const auto doubleTime = fmod(time().absolute_time_dp(), std::get<animated_model_data>(model).duration_sec() * 2);
-				auto time = glm::lerp(std::get<animated_model_data>(model).start_sec(), std::get<animated_model_data>(model).end_sec(), (doubleTime > std::get<animated_model_data>(model).duration_sec() ? doubleTime - std::get<animated_model_data>(model).duration_sec() : doubleTime) / std::get<animated_model_data>(model).duration_sec());
-				auto targetMemory = std::get<additional_animated_model_data>(model).mBoneMatricesAni.data();
+		// Animate all the meshes
+		for (auto& model : mAnimatedModels) {
+			auto& animation = std::get<animated_model_data>(model).mAnimation;
+			auto& clip = std::get<animated_model_data>(model).mClip;
+			const auto doubleTime = fmod(time().absolute_time_dp(), std::get<animated_model_data>(model).duration_sec() * 2);
+			auto time = glm::lerp(std::get<animated_model_data>(model).start_sec(), std::get<animated_model_data>(model).end_sec(), (doubleTime > std::get<animated_model_data>(model).duration_sec() ? doubleTime - std::get<animated_model_data>(model).duration_sec() : doubleTime) / std::get<animated_model_data>(model).duration_sec());
+			auto targetMemory = std::get<additional_animated_model_data>(model).mBoneMatricesAni.data();
 
-				// Use lambda option 1 that takes as parameters: mesh_bone_info, inverse mesh root matrix, global node/bone transform w.r.t. the animation, inverse bind-pose matrix
-				animation.animate(clip, time, [this, &animation, targetMemory](mesh_bone_info aInfo, const glm::mat4& aInverseMeshRootMatrix, const glm::mat4& aTransformMatrix, const glm::mat4& aInverseBindPoseMatrix, const glm::mat4& aLocalTransformMatrix, size_t aAnimatedNodeIndex, size_t aBoneMeshTargetIndex, double aAnimationTimeInTicks) {
-					// Construction of the bone matrix for this node:
-					//   1. Bring vertex into bone space
-					//   2. Apply transformaton in bone space => MODEL SPACE
-					targetMemory[aInfo.mGlobalBoneIndexOffset + aInfo.mMeshLocalBoneIndex] = aTransformMatrix * aInverseBindPoseMatrix;
-					});
-			}
+			// Use lambda option 1 that takes as parameters: mesh_bone_info, inverse mesh root matrix, global node/bone transform w.r.t. the animation, inverse bind-pose matrix
+			animation.animate(clip, time, [this, &animation, targetMemory](mesh_bone_info aInfo, const glm::mat4& aInverseMeshRootMatrix, const glm::mat4& aTransformMatrix, const glm::mat4& aInverseBindPoseMatrix, const glm::mat4& aLocalTransformMatrix, size_t aAnimatedNodeIndex, size_t aBoneMeshTargetIndex, double aAnimationTimeInTicks) {
+				// Construction of the bone matrix for this node:
+				//   1. Bring vertex into bone space
+				//   2. Apply transformaton in bone space => MODEL SPACE
+				targetMemory[aInfo.mGlobalBoneIndexOffset + aInfo.mMeshLocalBoneIndex] = aTransformMatrix * aInverseBindPoseMatrix;
+				});
+		}
 
-			float time = avk::time().absolute_time_dp();
-			float sceneDiag = mSceneBBox.diagonal().norm();
-			// create buffer for instances
-			for (int32_t y = -grid_size; y <= grid_size; y++) {
-				for (int32_t x = -grid_size; x <= grid_size; x++) {
-					glm::mat4 M(1.0f);
-					M = glm::translate(M, glm::vec3(x * sceneDiag, 0.0f, y * sceneDiag));
-					M = glm::rotate(M, time * 1.6f + x * 9774.37f, glm::vec3(1.0f, 0.0f, 0.0f));
-					M = glm::rotate(M, time * 3.2f + y * 2715.53f, glm::vec3(0.0f, 0.0f, 1.0f));
-					//M = glm::scale(M, glm::vec3(sin(time + (x ^ y) * 13.73f) * 0.2f + 0.8f));
-					mInstanceMatrices[(y + grid_size) * num_instances + x + grid_size] = M;
-				}
+		if (mAnimate)
+			mTime = avk::time().absolute_time_dp();
+		float sceneDiag = mSceneBBox.diagonal().norm();
+		// create buffer for instances
+		for (int32_t y = -grid_size; y <= grid_size; y++) {
+			for (int32_t x = -grid_size; x <= grid_size; x++) {
+				glm::mat4 M(1.0f);
+				M = glm::translate(M, glm::vec3(x * sceneDiag, 0.0f, y * sceneDiag));
+				M = glm::rotate(M, mTime * 1.6f + x * 9774.37f, glm::vec3(1.0f, 0.0f, 0.0f));
+				M = glm::rotate(M, mTime * 3.2f + y * 2715.53f, glm::vec3(0.0f, 0.0f, 1.0f));
+				//M = glm::scale(M, glm::vec3(sin(time + (x ^ y) * 13.73f) * 0.2f + 0.8f));
+				mInstanceMatrices[(y + grid_size) * num_instances + x + grid_size] = M;
 			}
 		}
 
@@ -1227,7 +1226,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				return mBoneMatricesBuffersAni[inFlightIndex][std::get<animated_model_data>(tpl).mBoneMatricesBufferIndex]->fill(std::get<additional_animated_model_data>(tpl).mBoneMatricesAni.data(), 0);
 				}),
 
-			command::conditional([this]() { return mAnimate; }, 
+			command::conditional([this]() { return true; }, 
 				[this, inFlightIndex]() {
 					return mInstanceMatricesBuffer[inFlightIndex]->fill(mInstanceMatrices.data(), 0);
 				}),
@@ -1298,6 +1297,7 @@ private: // v== Member variables ==v
 	uint32_t num_instances2 = num_instances * num_instances;
 	std::vector<glm::mat4> mInstanceMatrices;
 	std::array<avk::buffer, cConcurrentFrames> mInstanceMatricesBuffer;
+	float mTime{ 0.f };
 
 	std::vector<data_for_draw_call> mDrawCalls;
 	avk::graphics_pipeline mPipelineExt;
