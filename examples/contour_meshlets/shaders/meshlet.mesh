@@ -33,6 +33,11 @@ layout(set = 0, binding = 1) uniform CameraTransform
 
 taskPayloadSharedEXT uint meshletIndices[NUM_TASK_SHADER_INVOCATIONS];
 
+layout(set = 1, binding = 1) buffer InstanceTransforms
+{
+	mat4 mat[];
+} instanceMatrices;
+
 layout(set = 2, binding = 0) buffer BoneMatrices 
 {
 	mat4 mat[]; // length of #bones
@@ -93,7 +98,8 @@ shared vec3 vertexPos[64];
 // Mesh Shader Main:
 void main() 
 {
-	uint meshletIndex = meshletIndices[gl_WorkGroupID.x];
+	uint meshletIndex = meshletIndices[2*gl_WorkGroupID.x];
+	uint instanceId = meshletIndices[2*gl_WorkGroupID.x+1];
 	uint mhash = hash(meshletIndex);
 	vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
 
@@ -175,8 +181,8 @@ void main()
 		//vec4 posWS = transformationMatrix * vec4(center + radius * normalize(aniPos.xyz - center), 1); // project to bounding sphere
 		//vec3 dir = (aniPos.xyz - center) - dot((aniPos.xyz - center), cone_axis) * cone_axis;
 		//vec4 posWS = transformationMatrix * vec4(center + dir + cone_axis * length(dir) / tan(acos(cone_cutoff)) * 5 , 1); // project to bounding cone
-		
-		vec4 posWS = transformationMatrix * aniPos;
+
+		vec4 posWS = instanceMatrices.mat[instanceId] * transformationMatrix * aniPos;
 		vertexPos[i] = posWS.xyz;
 		vec4 posCS = ubo.mViewProjMatrix * posWS;
  

@@ -146,7 +146,7 @@ void main()
 		float invLen = 1 / sqrt(cone_axis.x * cone_axis.x + cone_axis.z * cone_axis.z);
 		vec3 c = vec3(cone_axis.z * invLen, 0, -cone_axis.x * invLen);
 		vec3 b = cross(c, cone_axis);
-		posWS = transformationMatrix * vec4(center + (cone_axis * l + b * cos(phi) * y + c * sin(phi) * y) * 1, 1);
+		//posWS = transformationMatrix * vec4(center + (cone_axis * l + b * cos(phi) * y + c * sin(phi) * y) * 1, 1);
 		vec4 posCS = ubo.mViewProjMatrix * posWS;
  
 		// Set the vertex position:

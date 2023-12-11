@@ -22,6 +22,7 @@
  */
 #include "../shaders/cpu_gpu_shared_config.h"
 #include "vk_convenience_functions.hpp"
+#include <corecrt_math_defines.h>
 
 #define USE_CACHE 0
 
@@ -38,6 +39,7 @@ class skinned_meshlets_app : public avk::invokee
 		vk::Bool32 mContours;
 		int32_t    mVisibleMeshletIndexFrom;
 		int32_t    mVisibleMeshletIndexTo;
+		int32_t    mNbInstances;
 	};
 
 	struct view_info
@@ -229,6 +231,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		int* dataPassBufferInt = (int*)dataPassBuffers[1];
 		SceneData* sceneData = CMCInternal_GetSceneData();
 		char* filepath = (char*) "assets/MESH_bun_zipper.cmcr";
+		//char* filepath = (char*)"assets/MESH_bunny.cmcr";
 		MeshletData* mData = CMCInternal_LoadNewMeshletDataFromDisk(filepath);
 		ProxyMesh* pMesh = CMCInternal_LoadProxyMeshFromBasePath(mData, (mData->proxyMeshes + LODMETHOD_PATCHFUSION_GPU_REDUCEDSPHERE), LODMETHOD_PATCHFUSION_GPU_REDUCEDSPHERE, filepath);
 
@@ -673,9 +676,15 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					}
 					else {
 
+						for (size_t k = 0; k < mData->nbVertices; ++k) {
+							mSceneBBox.extend(vec3(mData->restPosition[3 * k], mData->restPosition[3 * k + 1], mData->restPosition[3 * k + 2]));
+						}
+
 						drawCallData.mPositions.resize(mData->nbVertices);
 						drawCallData.mNormals.resize(mData->nbVertices);
 						for (size_t k = 0; k < mData->nbVertices; ++k) {
+							/*vec3 p = (vec3(mData->restPosition[3 * k], mData->restPosition[3 * k + 1], mData->restPosition[3 * k + 2]) - mSceneBBox.center()) / mSceneBBox.diagonal().norm();
+							drawCallData.mPositions[k] = glm::vec3(p.x(), p.y(), p.z());*/
 							drawCallData.mPositions[k] = glm::vec3(mData->restPosition[3 * k], mData->restPosition[3 * k + 1], mData->restPosition[3 * k + 2]);
 						}
 						drawCallData.mIndices = std::move(std::vector<uint32_t>(mData->topoFaceVertex, mData->topoFaceVertex + mData->nbFaces * 3));
@@ -704,28 +713,38 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 							vec3 normal = patch.ndfConeDirectionInPatchBasis.x() * patchBasisX + patch.ndfConeDirectionInPatchBasis.y() * patchBasisY + patch.ndfConeDirectionInPatchBasis.z() * patchBasisZ;
 
 							Eigen::AlignedBox3d bbox;
+							vec3 meanNormal;
+							meanNormal.setZero();
+							double cosAngle = 1;
 
 							std::map<int, unsigned int> indicesMap;
-							std::vector<vec3> pos;
+							std::vector<vec3> positions;
+							std::map<int, vec3> normals;
 							for (size_t i = 0; i < patch.nbFreeEdges; ++i) {
+								std::array<vec3, 4> vertices;
 								for (size_t j = 0; j < 4; ++j) {
 									int idx = patch.patchPRTOTopoBufferVVVV[4 * i + j];
 									assert(idx < mData->nbVertices);
 									if (idx == -1) {
 										idx = 0; // boundary
 									}
+									vec3 p(mData->restPosition[3 * idx], mData->restPosition[3 * idx + 1], mData->restPosition[3 * idx + 2]);
 									if (indicesMap.find(idx) == indicesMap.end()) {
 										indicesMap[idx] = cpuMeshlet->mVertices.size();
 										cpuMeshlet->mVertices.push_back(idx);
-										pos.push_back(vec3(mData->restPosition[3 * idx], mData->restPosition[3 * idx + 1], mData->restPosition[3 * idx + 2]));
+										positions.push_back(p);
 									}
 									cpuMeshlet->mIndices.push_back(indicesMap[idx]);
+									vertices[j] = p;
 								}
-								int idxA = patch.patchPRTOTopoBufferVVVV[4 * i];
-								int idxB = patch.patchPRTOTopoBufferVVVV[4 * i + 1];
-								vec3 A(mData->restPosition[3 * idxA], mData->restPosition[3 * idxA + 1], mData->restPosition[3 * idxA + 2]);
-								vec3 B(mData->restPosition[3 * idxB], mData->restPosition[3 * idxB + 1], mData->restPosition[3 * idxB + 2]);
-								bbox.extend(0.5 * (A + B));
+								bbox.extend(0.5 * (vertices[0] + vertices[1]));
+								int f1 = mData->topoEdgeFace[2 * patch.freeEdgesIDs[i]];
+								int f2 = mData->topoEdgeFace[2 * patch.freeEdgesIDs[i] + 1];
+								vec3 n1(mData->restNormals[3 * f1], mData->restNormals[3 * f1 + 1], mData->restNormals[3 * f1 + 2]);
+								vec3 n2(mData->restNormals[3 * f2], mData->restNormals[3 * f2 + 1], mData->restNormals[3 * f2 + 2]);
+								normals[f1] = n1;
+								normals[f2] = n2;
+								meanNormal = meanNormal + n1 + n2;
 								if (cpuMeshlet->mVertices.size() >= 60 || cpuMeshlet->mIndices.size() / 4 == 126) {
 									//LOG_WARNING(std::format("Patch too big {} vertices, {} faces", cpuMeshlet->mVertices.size(), cpuMeshlet->mIndices.size() / 4));
 									cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
@@ -733,18 +752,28 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 									cpuMeshlet->center = glm::vec3(bbox.center().x(), bbox.center().y(), bbox.center().z());
 									cpuMeshlet->radius = 0;
-									for (auto& p : pos) {
+									for (auto& p : positions) {
 										cpuMeshlet->radius = std::max(cpuMeshlet->radius, float((p - bbox.center()).norm()));
 									}
+									meanNormal.normalize();
+									for (auto& n : normals) {
+										cosAngle = std::min(cosAngle, n.second.dot(meanNormal));
+									}
+									cpuMeshlet->coneAxis = glm::vec3(meanNormal.x(), meanNormal.y(), meanNormal.z());
+									cpuMeshlet->coneCutoff = cosAngle > 0 ? std::acos(cosAngle) : M_PI;
 
 									/*cpuMeshlet->center = glm::vec3(sphereOrigin.x(), sphereOrigin.y(), sphereOrigin.z());
-									cpuMeshlet->radius = patch.boundingSphereRadius;*/
+									cpuMeshlet->radius = patch.boundingSphereRadius;
 									cpuMeshlet->coneAxis = glm::vec3(normal.x(), normal.y(), normal.z());
-									cpuMeshlet->coneCutoff = patch.ndfConeAngleRadians;
+									cpuMeshlet->coneCutoff = patch.ndfConeAngleRadians;*/
 									//break;
 									cpuMeshlet = &extraMeshlets.emplace_back();
 									indicesMap.clear();
 									bbox.setEmpty();
+									meanNormal.setZero();
+									normals.clear();
+									positions.clear();
+									cosAngle = 1;
 								}
 							}
 
@@ -753,13 +782,20 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 							cpuMeshlet->center = glm::vec3(bbox.center().x(), bbox.center().y(), bbox.center().z());
 							cpuMeshlet->radius = 0;
-							for (auto& p : pos) {
+							for (auto& p : positions) {
 								cpuMeshlet->radius = std::max(cpuMeshlet->radius, float((p - bbox.center()).norm()));
 							}
+							meanNormal.normalize();
+							for (auto& n : normals) {
+								cosAngle = std::min(cosAngle, n.second.dot(meanNormal));
+							}
+							cpuMeshlet->coneAxis = glm::vec3(meanNormal.x(), meanNormal.y(), meanNormal.z());
+							cpuMeshlet->coneCutoff = cosAngle > 0 ? std::acos(cosAngle) : M_PI;
+
 							/*cpuMeshlet->center = glm::vec3(sphereOrigin.x(), sphereOrigin.y(), sphereOrigin.z());
-							cpuMeshlet->radius = patch.boundingSphereRadius;*/
+							cpuMeshlet->radius = patch.boundingSphereRadius;
 							cpuMeshlet->coneAxis = glm::vec3(normal.x(), normal.y(), normal.z());
-							cpuMeshlet->coneCutoff = patch.ndfConeAngleRadians;
+							cpuMeshlet->coneCutoff = patch.ndfConeAngleRadians;*/
 						}
 
 						for (size_t k = 0; k < pMesh->nbFreeEdges; k++) {
@@ -865,6 +901,14 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			}
 		}
 
+		mInstanceMatrices.resize(num_instances2);
+		for (size_t cfi = 0; cfi < cConcurrentFrames; ++cfi) {
+			mInstanceMatricesBuffer[cfi] = avk::context().create_buffer(
+				avk::memory_usage::host_coherent, {},
+				avk::storage_buffer_meta::create_from_data(mInstanceMatrices)
+			);
+		}
+
 		// create all the buffers for our drawcall data
 		add_draw_calls(dataForDrawCall, mDrawCalls);
 
@@ -925,6 +969,13 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		LOG_INFO(std::format("This device supports subgroup operations in the following stages: {}", vk::to_string(subgroupProps.supportedStages)));
 		mTaskInvocationsExt = meshShaderProps.maxPreferredTaskWorkGroupInvocations;
 
+		mIndirectDrawParam.emplace_back(vk::DrawMeshTasksIndirectCommandEXT(avk::div_ceil(mNumMeshlets* num_instances2, mTaskInvocationsExt), 1, 1));
+		//mIndirectDrawParam.emplace_back(vk::DrawMeshTasksIndirectCommandEXT(avk::div_ceil(mNumMeshlets, mTaskInvocationsExt), 1, 1));
+		mIndirectDrawParamBuffer = avk::context().create_buffer(
+			avk::memory_usage::host_coherent, {},
+			avk::indirect_buffer_meta::create_from_data(mIndirectDrawParam));
+		auto emptyCommand2 = mIndirectDrawParamBuffer->fill(mIndirectDrawParam.data(), 0);
+
 		// Create our graphics mesh pipeline with the required configuration:
 		auto createGraphicsMeshPipeline = [this](auto taskShader, auto meshShader, uint32_t taskInvocations, uint32_t meshInvocations) {
 			return avk::context().create_graphics_pipeline_for(
@@ -950,6 +1001,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			    avk::descriptor_binding(0, 0, avk::as_combined_image_samplers(mImageSamplers, avk::layout::shader_read_only_optimal)),
 			    avk::descriptor_binding(0, 1, mViewProjBuffers[0]),
 			    avk::descriptor_binding(1, 0, mMaterialBuffer),
+				avk::descriptor_binding(1, 1, mInstanceMatricesBuffer[0]),
 			    avk::descriptor_binding(2, 0, mBoneMatricesBuffersAni[0]),
 			    // texel buffers
 			    avk::descriptor_binding(3, 0, avk::as_uniform_texel_buffer_views(mPositionBuffers)),
@@ -975,7 +1027,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 
 		mPipelineDebug = createGraphicsMeshPipeline(
-			"shaders/meshlet.task", "shaders/cone.mesh", 
+			"shaders/meshlet.task", "shaders/debug.mesh", 
 			meshShaderProps.maxPreferredTaskWorkGroupInvocations,
 			meshShaderProps.maxPreferredMeshWorkGroupInvocations
 		);
@@ -984,9 +1036,12 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 
 		// Add the camera to the composition (and let it handle the updates)
-		mOrbitCam.set_translation({ 0.0f, -1.0f, 8.0f });
-		mOrbitCam.set_pivot_distance(8.0f);
-		mQuakeCam.set_translation({ 0.0f, -1.0f, 8.0f });
+		float sceneSize = mSceneBBox.diagonal().norm() * num_instances;
+		mOrbitCam.set_translation({ 0.0f, sceneSize, sceneSize });
+		mOrbitCam.look_at(glm::vec3(0, 0, 0));
+		mOrbitCam.set_pivot_distance(sqrt(2.f)*sceneSize);
+		mQuakeCam.set_translation({ 0.0f, sceneSize, sceneSize });
+		mQuakeCam.look_at(glm::vec3(0, 0, 0));
 		mOrbitCam.set_perspective_projection(glm::radians(60.0f), avk::context().main_window()->aspect_ratio(), 0.3f, 1000.0f);
 		mQuakeCam.set_perspective_projection(glm::radians(60.0f), avk::context().main_window()->aspect_ratio(), 0.3f, 1000.0f);
 		avk::current_composition()->add_element(mOrbitCam);
@@ -1056,6 +1111,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				ImGui::Checkbox("Extract contours", &mExtractContours);
 				ImGui::Text("Select meshlets to be rendered:");
 				ImGui::DragIntRange2("Visible range", &mShowMeshletsFrom, &mShowMeshletsTo, 1, 0, static_cast<int>(mNumMeshlets));
+				ImGui::Checkbox("Animate", &mAnimate);
 
 				ImGui::End();
 			});
@@ -1091,21 +1147,37 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto mainWnd = context().main_window();
 		auto inFlightIndex = mainWnd->current_in_flight_index();
 
-		// Animate all the meshes
-		for (auto& model : mAnimatedModels) {
-			auto& animation = std::get<animated_model_data>(model).mAnimation;
-			auto& clip = std::get<animated_model_data>(model).mClip;
-			const auto doubleTime = fmod(time().absolute_time_dp(), std::get<animated_model_data>(model).duration_sec() * 2);
-			auto time = glm::lerp(std::get<animated_model_data>(model).start_sec(), std::get<animated_model_data>(model).end_sec(), (doubleTime > std::get<animated_model_data>(model).duration_sec() ? doubleTime - std::get<animated_model_data>(model).duration_sec() : doubleTime) / std::get<animated_model_data>(model).duration_sec());
-			auto targetMemory = std::get<additional_animated_model_data>(model).mBoneMatricesAni.data();
+		if (mAnimate) {
+			// Animate all the meshes
+			for (auto& model : mAnimatedModels) {
+				auto& animation = std::get<animated_model_data>(model).mAnimation;
+				auto& clip = std::get<animated_model_data>(model).mClip;
+				const auto doubleTime = fmod(time().absolute_time_dp(), std::get<animated_model_data>(model).duration_sec() * 2);
+				auto time = glm::lerp(std::get<animated_model_data>(model).start_sec(), std::get<animated_model_data>(model).end_sec(), (doubleTime > std::get<animated_model_data>(model).duration_sec() ? doubleTime - std::get<animated_model_data>(model).duration_sec() : doubleTime) / std::get<animated_model_data>(model).duration_sec());
+				auto targetMemory = std::get<additional_animated_model_data>(model).mBoneMatricesAni.data();
 
-			// Use lambda option 1 that takes as parameters: mesh_bone_info, inverse mesh root matrix, global node/bone transform w.r.t. the animation, inverse bind-pose matrix
-			animation.animate(clip, time, [this, &animation, targetMemory](mesh_bone_info aInfo, const glm::mat4& aInverseMeshRootMatrix, const glm::mat4& aTransformMatrix, const glm::mat4& aInverseBindPoseMatrix, const glm::mat4& aLocalTransformMatrix, size_t aAnimatedNodeIndex, size_t aBoneMeshTargetIndex, double aAnimationTimeInTicks) {
-				// Construction of the bone matrix for this node:
-				//   1. Bring vertex into bone space
-				//   2. Apply transformaton in bone space => MODEL SPACE
-				targetMemory[aInfo.mGlobalBoneIndexOffset + aInfo.mMeshLocalBoneIndex] = aTransformMatrix * aInverseBindPoseMatrix;
-			});
+				// Use lambda option 1 that takes as parameters: mesh_bone_info, inverse mesh root matrix, global node/bone transform w.r.t. the animation, inverse bind-pose matrix
+				animation.animate(clip, time, [this, &animation, targetMemory](mesh_bone_info aInfo, const glm::mat4& aInverseMeshRootMatrix, const glm::mat4& aTransformMatrix, const glm::mat4& aInverseBindPoseMatrix, const glm::mat4& aLocalTransformMatrix, size_t aAnimatedNodeIndex, size_t aBoneMeshTargetIndex, double aAnimationTimeInTicks) {
+					// Construction of the bone matrix for this node:
+					//   1. Bring vertex into bone space
+					//   2. Apply transformaton in bone space => MODEL SPACE
+					targetMemory[aInfo.mGlobalBoneIndexOffset + aInfo.mMeshLocalBoneIndex] = aTransformMatrix * aInverseBindPoseMatrix;
+					});
+			}
+
+			float time = avk::time().absolute_time_dp();
+			float sceneDiag = mSceneBBox.diagonal().norm();
+			// create buffer for instances
+			for (int32_t y = -grid_size; y <= grid_size; y++) {
+				for (int32_t x = -grid_size; x <= grid_size; x++) {
+					glm::mat4 M(1.0f);
+					M = glm::translate(M, glm::vec3(x * sceneDiag, 0.0f, y * sceneDiag));
+					M = glm::rotate(M, time * 1.6f + x * 9774.37f, glm::vec3(1.0f, 0.0f, 0.0f));
+					M = glm::rotate(M, time * 3.2f + y * 2715.53f, glm::vec3(0.0f, 0.0f, 1.0f));
+					//M = glm::scale(M, glm::vec3(sin(time + (x ^ y) * 13.73f) * 0.2f + 0.8f));
+					mInstanceMatrices[(y + grid_size) * num_instances + x + grid_size] = M;
+				}
+			}
 		}
 
 		view_info infos;
@@ -1116,14 +1188,14 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			? mQuakeCam.translation()
 			: mOrbitCam.translation();
 		auto emptyCmd = mViewProjBuffers[inFlightIndex]->fill(&infos, 0);
-		
+
 		// Get a command pool to allocate command buffers from:
 		auto& commandPool = context().get_command_pool_for_single_use_command_buffers(*mQueue);
 
 		// The swap chain provides us with an "image available semaphore" for the current frame.
 		// Only after the swapchain image has become available, we may start rendering into it.
 		auto imageAvailableSemaphore = mainWnd->consume_current_image_available_semaphore();
-		
+
 		// Create a command buffer and render into the *current* swap chain image:
 		auto cmdBfr = commandPool->alloc_command_buffer(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
@@ -1143,28 +1215,34 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto& pipeline = mUseDebugPipeline ? mPipelineDebug : mPipelineExt;
 
 		context().record(command::gather(
-			    mPipelineStatsPool->reset(inFlightIndex, 1),
-			    mPipelineStatsPool->begin_query(inFlightIndex),
-			    mTimestampPool->reset(firstQueryIndex, 2),     // reset the two values relevant for the current frame in flight
-			    mTimestampPool->write_timestamp(firstQueryIndex + 0, stage::all_commands), // measure before drawMeshTasks*
+			mPipelineStatsPool->reset(inFlightIndex, 1),
+			mPipelineStatsPool->begin_query(inFlightIndex),
+			mTimestampPool->reset(firstQueryIndex, 2),     // reset the two values relevant for the current frame in flight
+			mTimestampPool->write_timestamp(firstQueryIndex + 0, stage::all_commands), // measure before drawMeshTasks*
 
-				command::custom_commands([&](avk::command_buffer_t& cb) { vkCmdSetLineWidth(cb.handle(), 2.f); }),
+			command::custom_commands([](avk::command_buffer_t& cb) { vkCmdSetLineWidth(cb.handle(), 2.f); }),
 
-				// Upload the updated bone matrices into the buffer for the current frame (considering that we have cConcurrentFrames-many concurrent frames):
-				command::one_for_each(mAnimatedModels, [this, inFlightIndex](const std::tuple<animated_model_data, additional_animated_model_data>& tpl){
-					return mBoneMatricesBuffersAni[inFlightIndex][std::get<animated_model_data>(tpl).mBoneMatricesBufferIndex]->fill(std::get<additional_animated_model_data>(tpl).mBoneMatricesAni.data(), 0);
+			// Upload the updated bone matrices into the buffer for the current frame (considering that we have cConcurrentFrames-many concurrent frames):
+			command::one_for_each(mAnimatedModels, [this, inFlightIndex](const std::tuple<animated_model_data, additional_animated_model_data>& tpl) {
+				return mBoneMatricesBuffersAni[inFlightIndex][std::get<animated_model_data>(tpl).mBoneMatricesBufferIndex]->fill(std::get<additional_animated_model_data>(tpl).mBoneMatricesAni.data(), 0);
 				}),
 
-				command::render_pass(pipeline->renderpass_reference(), context().main_window()->current_backbuffer_reference(), {
-					command::bind_pipeline(pipeline.as_reference()),
-					command::bind_descriptors(pipeline->layout(), mDescriptorCache->get_or_create_descriptor_sets({
-						descriptor_binding(0, 0, as_combined_image_samplers(mImageSamplers, layout::shader_read_only_optimal)),
-						descriptor_binding(0, 1, mViewProjBuffers[inFlightIndex]),
-						descriptor_binding(1, 0, mMaterialBuffer),
-						descriptor_binding(2, 0, mBoneMatricesBuffersAni[inFlightIndex]),
-						descriptor_binding(3, 0, as_uniform_texel_buffer_views(mPositionBuffers)),
-						descriptor_binding(3, 2, as_uniform_texel_buffer_views(mNormalBuffers)),
-						descriptor_binding(3, 3, as_uniform_texel_buffer_views(mTexCoordsBuffers)),
+			command::conditional([this]() { return mAnimate; }, 
+				[this, inFlightIndex]() {
+					return mInstanceMatricesBuffer[inFlightIndex]->fill(mInstanceMatrices.data(), 0);
+				}),
+
+			command::render_pass(pipeline->renderpass_reference(), context().main_window()->current_backbuffer_reference(), {
+				command::bind_pipeline(pipeline.as_reference()),
+				command::bind_descriptors(pipeline->layout(), mDescriptorCache->get_or_create_descriptor_sets({
+					descriptor_binding(0, 0, as_combined_image_samplers(mImageSamplers, layout::shader_read_only_optimal)),
+					descriptor_binding(0, 1, mViewProjBuffers[inFlightIndex]),
+					descriptor_binding(1, 0, mMaterialBuffer),
+					descriptor_binding(1, 1, mInstanceMatricesBuffer[inFlightIndex]),
+					descriptor_binding(2, 0, mBoneMatricesBuffersAni[inFlightIndex]),
+					descriptor_binding(3, 0, as_uniform_texel_buffer_views(mPositionBuffers)),
+					descriptor_binding(3, 2, as_uniform_texel_buffer_views(mNormalBuffers)),
+					descriptor_binding(3, 3, as_uniform_texel_buffer_views(mTexCoordsBuffers)),
 #if USE_REDIRECTED_GPU_DATA
 						descriptor_binding(3, 4, avk::as_storage_buffers(mIndicesDataBuffers)),
 #endif
@@ -1178,11 +1256,14 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 						mCullMeshlets,
 						mExtractContours,
 						static_cast<int32_t>(mShowMeshletsFrom),
-						static_cast<int32_t>(mShowMeshletsTo)
+						static_cast<int32_t>(mShowMeshletsTo),
+						static_cast<int32_t>(num_instances2)
 					}),
 
-					// Draw all the meshlets with just one single draw call:
-					command::draw_mesh_tasks_ext(div_ceil(mNumMeshlets, mTaskInvocationsExt), 1, 1),
+				// Draw all the meshlets with just one single draw call:
+				//command::draw_mesh_tasks_ext(div_ceil(mNumMeshlets * num_instances2, mTaskInvocationsExt), 1, 1),
+
+				command::draw_mesh_tasks_indirect_ext(mIndirectDrawParamBuffer, 0, 1, sizeof(vk::DrawMeshTasksIndirectCommandEXT)),
 				}),
 
 				mTimestampPool->write_timestamp(firstQueryIndex + 1, stage::mesh_shader),
@@ -1203,6 +1284,7 @@ private: // v== Member variables ==v
 	avk::descriptor_cache mDescriptorCache;
 
 	std::vector<std::tuple<animated_model_data, additional_animated_model_data>> mAnimatedModels;
+	Eigen::AlignedBox3d mSceneBBox;
 
 	std::vector<avk::buffer> mViewProjBuffers;
 	avk::buffer mMaterialBuffer;
@@ -1210,12 +1292,22 @@ private: // v== Member variables ==v
 	std::array<std::vector<avk::buffer>, cConcurrentFrames> mBoneMatricesBuffersAni;
 	std::vector<avk::image_sampler> mImageSamplers;
 
+	// scene size
+	int32_t grid_size = 3;
+	uint32_t num_instances = grid_size * 2 + 1;
+	uint32_t num_instances2 = num_instances * num_instances;
+	std::vector<glm::mat4> mInstanceMatrices;
+	std::array<avk::buffer, cConcurrentFrames> mInstanceMatricesBuffer;
+
 	std::vector<data_for_draw_call> mDrawCalls;
 	avk::graphics_pipeline mPipelineExt;
 	avk::graphics_pipeline mPipelineDebug;
 
 	avk::orbit_camera mOrbitCam;
 	avk::quake_camera mQuakeCam;
+
+	std::vector<vk::DrawMeshTasksIndirectCommandEXT> mIndirectDrawParam;
+	avk::buffer mIndirectDrawParamBuffer;
 
     uint32_t mNumMeshlets;
 	uint32_t mTaskInvocationsExt;
@@ -1237,6 +1329,7 @@ private: // v== Member variables ==v
 	int  mShowMeshletsFrom  = 0;
 	int  mShowMeshletsTo    = 0;
 	bool mUseDebugPipeline = false;
+	bool mAnimate = true;
 
 	avk::query_pool mTimestampPool;
 	uint64_t mLastTimestamp = 0;

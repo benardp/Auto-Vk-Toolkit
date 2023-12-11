@@ -15,14 +15,15 @@ layout (constant_id = 0) const uint NUM_TASK_SHADER_INVOCATIONS = 1; // <- Expec
 //           ^  same as  v 
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
-taskPayloadSharedEXT uint meshletIndices[NUM_TASK_SHADER_INVOCATIONS];
+taskPayloadSharedEXT uint meshletIndices[2*NUM_TASK_SHADER_INVOCATIONS];
 
 layout(push_constant) uniform PushConstants {
 	bool mHighlightMeshlets;
 	bool mCull;
 	bool mContours;
 	int  mVisibleMeshletIndexFrom;
-	int  mVisibleMeshletIndexTo;  
+	int  mVisibleMeshletIndexTo;
+	int  mNbInstances;
 } pushConstants;
 
 layout(set = 0, binding = 1) uniform CameraTransform
@@ -30,6 +31,11 @@ layout(set = 0, binding = 1) uniform CameraTransform
 	mat4 mViewProjMatrix;
 	vec3 mCameraCenter;
 } ubo;
+
+layout(set = 1, binding = 1) buffer InstanceTransforms
+{
+	mat4 mat[];
+} instanceMatrices;
 
 layout(set = 4, binding = 0) buffer MeshletsBuffer { extended_meshlet mValues[]; } meshletsBuffer;
 
@@ -40,7 +46,8 @@ void main()
 	// Calculate and set the meshlet index for this execution:
 	uint groupId      = gl_WorkGroupID.x;
 	uint invocationId = gl_LocalInvocationID.x;
-	uint meshletIndex = groupId * NUM_TASK_SHADER_INVOCATIONS + invocationId;
+	uint meshletIndex = (groupId * NUM_TASK_SHADER_INVOCATIONS) / pushConstants.mNbInstances + invocationId;
+	uint instanceId   = (groupId * NUM_TASK_SHADER_INVOCATIONS) % pushConstants.mNbInstances ;
 
 	numMeshlets = 0;
 	barrier(); // for numMeshlets
@@ -49,7 +56,7 @@ void main()
 	bool meshletVisible = meshletIndex >= pushConstants.mVisibleMeshletIndexFrom && meshletIndex < pushConstants.mVisibleMeshletIndexTo;
 
 	if(pushConstants.mCull) {
-		mat4 transformationMatrix = meshletsBuffer.mValues[meshletIndex].mTransformationMatrix;
+		mat4 transformationMatrix = instanceMatrices.mat[instanceId] * meshletsBuffer.mValues[meshletIndex].mTransformationMatrix;
 		vec3 center = meshletsBuffer.mValues[meshletIndex].center;
 		float radius = meshletsBuffer.mValues[meshletIndex].radius;
 		vec3 cone_axis = meshletsBuffer.mValues[meshletIndex].coneAxis;
@@ -62,7 +69,8 @@ void main()
 	if (meshletVisible)
 	{
 		uint insertIndex = atomicAdd(numMeshlets, 1);
-		meshletIndices[insertIndex] = meshletIndex;
+		meshletIndices[2*insertIndex] = meshletIndex;
+		meshletIndices[2*insertIndex+1] = instanceId;
 	}
 
 //	uint insertIndex = subgroupExclusiveAdd(uint(meshletVisible));
