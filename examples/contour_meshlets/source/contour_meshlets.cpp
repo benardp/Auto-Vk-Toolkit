@@ -395,6 +395,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 						auto selection = avk::make_model_references_and_mesh_indices_selection(curModel, meshIndex);
 						// Build meshlets:
 						std::tie(drawCallData.mPositions, drawCallData.mIndices) = avk::get_vertices_and_indices(selection);
+						for (const auto&p : drawCallData.mPositions) {
+							mSceneBBox.extend(vec3(p.x, p.y, p.z));
+						}
 						drawCallData.mNormals = avk::get_normals(selection);
 						drawCallData.mTexCoords = avk::get_2d_texture_coordinates(selection, 0);
 						// Empty bone indices and weights too
@@ -410,7 +413,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 								// definitions
 								size_t max_triangles = aMaxIndices / 3;
-								const float cone_weight = 0.5f;
+								const float cone_weight = 0.75f;
 
 								// get the maximum number of meshlets that could be generated
 								size_t max_meshlets = meshopt_buildMeshletsBound(aIndices.size(), aMaxVertices, max_triangles);
@@ -435,7 +438,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 									gm.center = glm::vec3(bounds.center[0], bounds.center[1], bounds.center[2]);
 									gm.radius = bounds.radius;
 									gm.coneAxis = glm::vec3(bounds.cone_axis[0], bounds.cone_axis[1], bounds.cone_axis[2]);
-									gm.coneCutoff = bounds.cone_cutoff;
+									gm.coneCutoff = bounds.cone_cutoff > 0 ? acos(bounds.cone_cutoff) : M_PI;
 
 									std::map<avk::model_t::Edge, avk::model_t::Neighbors, avk::model_t::CompareEdges> indexMap;
 									std::vector< std::pair<avk::model_t::Edge, unsigned int> > boundaryEdges;
