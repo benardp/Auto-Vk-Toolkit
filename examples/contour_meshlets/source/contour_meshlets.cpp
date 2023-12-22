@@ -230,14 +230,22 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		float* dataPassBufferFloat = (float*)dataPassBuffers[0];
 		int* dataPassBufferInt = (int*)dataPassBuffers[1];
 		SceneData* sceneData = CMCInternal_GetSceneData();
-		char* filepath = (char*) "assets/MESH_bun_zipper.cmcr";
-		//char* filepath = (char*)"assets/MESH_bunny.cmcr";
+		//char* filepath = (char*)"assets/MESH_dragon_vrip.cmcr";
+		//char* filepath = (char*) "assets/MESH_Armadillo.cmcr";
+		//char* filepath = (char*)"assets/MESH_bun_zipper.cmcr";
+		//char* filepath = (char*)"assets/MESH_Env_RomanBath.cmcr";
+		//char* filepath = (char*)"assets/MESH_Env_SpaceStationNoDebris.cmcr";
+		//char* filepath = (char*)"assets/MESH_Env_BookFantasy.cmcr";
+		//char* filepath = (char*)"assets/MESH_Env_Vigilant.cmcr";
+		//char* filepath = (char*)"assets/Chr_Pigman.cmcr";
+		//char* filepath = (char*)"assets/Chr_Tuba.cmcr";
+		char* filepath = (char*)"assets/GawainFull.cmcr";
 		MeshletData* mData = CMCInternal_LoadNewMeshletDataFromDisk(filepath);
-		ProxyMesh* pMesh = CMCInternal_LoadProxyMeshFromBasePath(mData, (mData->proxyMeshes + LODMETHOD_PATCHFUSION_GPU_REDUCEDSPHERE), LODMETHOD_PATCHFUSION_GPU_REDUCEDSPHERE, filepath);
+		ProxyMesh* pMesh = CMCInternal_LoadProxyMeshFromBasePath(mData, (mData->proxyMeshes + LODMETHOD_GPU_MESHSHADER_REDUCEDSPHERE), LODMETHOD_GPU_MESHSHADER_REDUCEDSPHERE, filepath);
 
 
 
-		auto model = avk::model_t::load_from_file("assets/stanford_bunny2.obj", aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_PreTransformVertices);
+		auto model = avk::model_t::load_from_file("assets/stanford_bunny3.obj", aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_PreTransformVertices);
 		loadedModels.push_back(std::move(model));
 
 		std::vector<avk::material_config> allMatConfigs; // <-- Gather the material config from all models to be loaded
@@ -513,11 +521,11 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 										avk::model_t::Neighbors neighbours = adjacency[e];
 										uint32_t n = -1;
 										for (unsigned int k = 0; k < 3; k++) {
-											if (aIndices[neighbours.n1 * 3 + k] == v_c) {
+											if (neighbours.n1 != -1 && aIndices[neighbours.n1 * 3 + k] == v_c) {
 												n = neighbours.n2;
 												break;
 											}
-											if (aIndices[neighbours.n2 * 3 + k] == v_c) {
+											if (neighbours.n2 != -1 && aIndices[neighbours.n2 * 3 + k] == v_c) {
 												n = neighbours.n1;
 												break;
 											}
@@ -675,7 +683,6 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 							};*/
 
 						cpuMeshlets = avk::divide_into_meshlets(meshletSelection, meshoptimizer_clustering, true, 32, 16 * 4 * 3);
-
 					}
 					else {
 
@@ -683,12 +690,21 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 							mSceneBBox.extend(vec3(mData->restPosition[3 * k], mData->restPosition[3 * k + 1], mData->restPosition[3 * k + 2]));
 						}
 
+						drawCallData.mNormals.resize(mData->nbVertices, glm::vec3(0));
+						for (size_t f = 0; f < mData->nbFaces; ++f) {
+							glm::vec3 n = glm::vec3(mData->restNormals[3 * f], mData->restNormals[3 * f + 1], mData->restNormals[3 * f + 2]);
+							drawCallData.mNormals[mData->topoFaceVertex[3 * f]] += n;
+							drawCallData.mNormals[mData->topoFaceVertex[3 * f + 1]] += n;
+							drawCallData.mNormals[mData->topoFaceVertex[3 * f + 2]] += n;
+						}
+
 						drawCallData.mPositions.resize(mData->nbVertices);
-						drawCallData.mNormals.resize(mData->nbVertices);
 						for (size_t k = 0; k < mData->nbVertices; ++k) {
 							/*vec3 p = (vec3(mData->restPosition[3 * k], mData->restPosition[3 * k + 1], mData->restPosition[3 * k + 2]) - mSceneBBox.center()) / mSceneBBox.diagonal().norm();
 							drawCallData.mPositions[k] = glm::vec3(p.x(), p.y(), p.z());*/
 							drawCallData.mPositions[k] = glm::vec3(mData->restPosition[3 * k], mData->restPosition[3 * k + 1], mData->restPosition[3 * k + 2]);
+
+							drawCallData.mNormals[k] = glm::normalize(drawCallData.mNormals[k]);
 						}
 						drawCallData.mIndices = std::move(std::vector<uint32_t>(mData->topoFaceVertex, mData->topoFaceVertex + mData->nbFaces * 3));
 						drawCallData.mTexCoords.resize(mData->nbVertices);
@@ -748,7 +764,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 								normals[f1] = n1;
 								normals[f2] = n2;
 								meanNormal = meanNormal + n1 + n2;
-								if (cpuMeshlet->mVertices.size() >= 60 || cpuMeshlet->mIndices.size() / 4 == 126) {
+								if (cpuMeshlet->mVertices.size() > 64 || cpuMeshlet->mIndices.size() / 4 == 126) {
 									//LOG_WARNING(std::format("Patch too big {} vertices, {} faces", cpuMeshlet->mVertices.size(), cpuMeshlet->mIndices.size() / 4));
 									cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
 									cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
@@ -795,16 +811,17 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 							cpuMeshlet->coneAxis = glm::vec3(meanNormal.x(), meanNormal.y(), meanNormal.z());
 							cpuMeshlet->coneCutoff = cosAngle > 0 ? std::acos(cosAngle) : M_PI;
 
-							/*cpuMeshlet->center = glm::vec3(sphereOrigin.x(), sphereOrigin.y(), sphereOrigin.z());
+							cpuMeshlet->center = glm::vec3(sphereOrigin.x(), sphereOrigin.y(), sphereOrigin.z());
 							cpuMeshlet->radius = patch.boundingSphereRadius;
 							cpuMeshlet->coneAxis = glm::vec3(normal.x(), normal.y(), normal.z());
-							cpuMeshlet->coneCutoff = patch.ndfConeAngleRadians;*/
+							cpuMeshlet->coneCutoff = patch.ndfConeAngleRadians;
 						}
 
+						avk::meshlet* cpuMeshlet;
+						if(pMesh->nbFreeEdges > 0) cpuMeshlet = &extraMeshlets.emplace_back();
+						std::map<int, unsigned int> indicesMap;
 						for (size_t k = 0; k < pMesh->nbFreeEdges; k++) {
-							avk::meshlet* cpuMeshlet = &extraMeshlets.emplace_back();
 							int eId = pMesh->freeEdgesIDs[k];
-							std::map<int, unsigned int> indicesMap;
 							for (size_t j = 0; j < 4; ++j) {
 								int idx = mData->topoWingedEdgeVVVV[4 * eId + j];
 								if (idx == -1) {
@@ -815,23 +832,26 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 									cpuMeshlet->mVertices.push_back(idx);
 								}
 								cpuMeshlet->mIndices.push_back(indicesMap[idx]);
-								if (cpuMeshlet->mVertices.size() >= 60 || cpuMeshlet->mIndices.size() / 4 == 126) {
-									//LOG_WARNING(std::format("Patch too big {} vertices, {} faces", cpuMeshlet->mVertices.size(), cpuMeshlet->mIndices.size() / 4));
-									cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
-									cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
-
-									cpuMeshlet = &extraMeshlets.emplace_back();
-									indicesMap.clear();
-								}
 							}
+							if (cpuMeshlet->mVertices.size() >= 60 || cpuMeshlet->mIndices.size() / 4 == 126) {
+								//LOG_WARNING(std::format("Patch too big {} vertices, {} faces", cpuMeshlet->mVertices.size(), cpuMeshlet->mIndices.size() / 4));
+								cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
+								cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
+								cpuMeshlet->coneCutoff = 3.14;
+								cpuMeshlet->radius = 0;
+
+								cpuMeshlet = &extraMeshlets.emplace_back();
+								indicesMap.clear();
+							}
+						}
+						if (extraMeshlets.size() > 0) {
 							cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
 							cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
 
 							cpuMeshlet->coneCutoff = 3.14;
 							cpuMeshlet->radius = 0;
+							cpuMeshlets.insert(cpuMeshlets.end(), std::make_move_iterator(extraMeshlets.begin()), std::make_move_iterator(extraMeshlets.end()));
 						}
-
-						cpuMeshlets.insert(cpuMeshlets.begin(), std::make_move_iterator(extraMeshlets.begin()), std::make_move_iterator(extraMeshlets.end()));
 					}
 
 #if !USE_REDIRECTED_GPU_DATA
@@ -996,7 +1016,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			    // We'll render to the back buffer, which has a color attachment always, and in our case additionally a depth
 			    // attachment, which has been configured when creating the window. See main() function!
 			    avk::context().create_renderpass({
-				    avk::attachment::declare(avk::format_from_window_color_buffer(avk::context().main_window()), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::color(0)     , avk::on_store::store),
+				    avk::attachment::declare(avk::format_from_window_color_buffer(avk::context().main_window()), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::color(0)     , avk::on_store::store).set_clear_color({1.f, 1.f, 1.f, 0.0f}),
 				    avk::attachment::declare(avk::format_from_window_depth_buffer(avk::context().main_window()), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::depth_stencil, avk::on_store::dont_care)
 				    }, avk::context().main_window()->renderpass_reference().subpass_dependencies()),
 			    // The following define additional data which we'll pass to the pipeline:
@@ -1040,11 +1060,13 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 		// Add the camera to the composition (and let it handle the updates)
 		float sceneSize = mSceneBBox.diagonal().norm() * num_instances;
-		mOrbitCam.set_translation({ 0.0f, sceneSize, sceneSize });
-		mOrbitCam.look_at(glm::vec3(0, 0, 0));
+		glm::vec3 sceneCenter = glm::vec3(mSceneBBox.center().x(), mSceneBBox.center().y(), mSceneBBox.center().z());
+		mZoom = 2.f * mSceneBBox.diagonal().norm();
+		mOrbitCam.set_translation(sceneCenter - glm::vec3(mZoom, 0.0f, 0.0f ));
+		mOrbitCam.look_at(sceneCenter);
 		mOrbitCam.set_pivot_distance(sqrt(2.f)*sceneSize);
-		mQuakeCam.set_translation({ 0.0f, sceneSize, sceneSize });
-		mQuakeCam.look_at(glm::vec3(0, 0, 0));
+		mQuakeCam.set_translation({ 0.0f, sceneSize, 0.0f });
+		mQuakeCam.look_at(sceneCenter);
 		mOrbitCam.set_perspective_projection(glm::radians(60.0f), avk::context().main_window()->aspect_ratio(), 0.3f, 1000.0f);
 		mQuakeCam.set_perspective_projection(glm::radians(60.0f), avk::context().main_window()->aspect_ratio(), 0.3f, 1000.0f);
 		avk::current_composition()->add_element(mOrbitCam);
@@ -1068,14 +1090,14 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				ImGui::Text("%.3f ms/frame", 1000.0f / ImGui::GetIO().Framerate);
 				ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
 				ImGui::Separator();
-				ImGui::TextColored(ImVec4(.5f, .3f, .4f, 1.f), "Timestamp Period: %.3f ns", timestampPeriod);
+				/*ImGui::TextColored(ImVec4(.5f, .3f, .4f, 1.f), "Timestamp Period: %.3f ns", timestampPeriod);
 				lastFrameDurationMs = glm::mix(lastFrameDurationMs, mLastFrameDuration * 1e-6 * timestampPeriod, 0.05);
 				lastDrawMeshTasksDurationMs = glm::mix(lastDrawMeshTasksDurationMs, mLastDrawMeshTasksDuration * 1e-6 * timestampPeriod, 0.05);
 				ImGui::TextColored(ImVec4(.8f, .1f, .6f, 1.f), "Frame time (timer queries): %.3lf ms", lastFrameDurationMs);
-				ImGui::TextColored(ImVec4(.8f, .1f, .6f, 1.f), "drawMeshTasks took        : %.3lf ms", lastDrawMeshTasksDurationMs);
-				ImGui::Text(                                   "Fragment shader           : %llu", mPipelineStats[0]);
-				ImGui::Text(                                   "Task shader               : %llu", mPipelineStats[1]);
-				ImGui::Text(                                   "Mesh shader               : %llu", mPipelineStats[2]);
+				ImGui::TextColored(ImVec4(.8f, .1f, .6f, 1.f), "drawMeshTasks took        : %.3lf ms", lastDrawMeshTasksDurationMs);*/
+				ImGui::Text("Fragment shader : %llu", mPipelineStats[0]);
+				ImGui::Text("Task shader     : %llu", mPipelineStats[1]);
+				ImGui::Text("Mesh shader     : %llu", mPipelineStats[2]);
 				
 				ImGui::Separator();
 				bool quakeCamEnabled = mQuakeCam.is_enabled();
@@ -1132,14 +1154,22 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 	void update() override
 	{
-		if (avk::input().key_pressed(avk::key_code::c)) {
-			// Center the cursor:
-			auto resolution = avk::context().main_window()->resolution();
-			avk::context().main_window()->set_cursor_pos({ resolution[0] / 2.0, resolution[1] / 2.0 });
-		}
+		//if (avk::input().key_pressed(avk::key_code::c)) {
+		//	// Center the cursor:
+		//	auto resolution = avk::context().main_window()->resolution();
+		//	avk::context().main_window()->set_cursor_pos({ resolution[0] / 2.0, resolution[1] / 2.0 });
+		//}
 		if (avk::input().key_pressed(avk::key_code::escape)) {
 			// Stop the current composition:
 			avk::current_composition()->stop();
+		}
+		if (avk::input().key_pressed(avk::key_code::p)) {
+			// activate the culling
+			mCullMeshlets = !mCullMeshlets;
+		}
+		if (avk::input().key_pressed(avk::key_code::c)) {
+			// activate contour extraction
+			mExtractContours = !mExtractContours;
 		}
 	}
 
@@ -1167,20 +1197,28 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				});
 		}
 
-		if (mAnimate)
-			mTime = avk::time().absolute_time_dp();
 		float sceneDiag = mSceneBBox.diagonal().norm();
+		glm::vec3 sceneCenter = glm::vec3(0, 0, 0); //glm::vec3(mSceneBBox.center().x(), mSceneBBox.center().y(), mSceneBBox.center().z());
+		if (mAnimate) {
+			mTime = avk::time().absolute_time_dp();
+			if (mZoom > 50) mGrow = false;
+			if (mZoom < 1.5) mGrow = true;
+			float speed = 5.f * std::exp((mZoom - 1.5f) / 50.f);
+			mZoom = mGrow ? mZoom + avk::time().delta_time() * speed : mZoom - avk::time().delta_time() * speed;
+			mOrbitCam.set_translation({ 0.0f, mZoom * sceneDiag, 0.0f });
+			mOrbitCam.look_at(sceneCenter);
+		}
 		// create buffer for instances
 		for (int32_t y = -grid_size; y <= grid_size; y++) {
 			for (int32_t x = -grid_size; x <= grid_size; x++) {
 				glm::mat4 M(1.0f);
-				M = glm::translate(M, glm::vec3(x * sceneDiag, 0.0f, y * sceneDiag));
+				M = glm::translate(M, 0.75f * glm::vec3(x * sceneDiag, 0.0f, y * sceneDiag));
 				M = glm::rotate(M, mTime * 1.6f + x * 9774.37f, glm::vec3(1.0f, 0.0f, 0.0f));
 				M = glm::rotate(M, mTime * 3.2f + y * 2715.53f, glm::vec3(0.0f, 0.0f, 1.0f));
 				//M = glm::scale(M, glm::vec3(sin(time + (x ^ y) * 13.73f) * 0.2f + 0.8f));
 				mInstanceMatrices[(y + grid_size) * num_instances + x + grid_size] = M;
 			}
-		}
+		}		
 
 		view_info infos;
 		infos.mViewProjMatrix = mQuakeCam.is_enabled()
@@ -1295,12 +1333,14 @@ private: // v== Member variables ==v
 	std::vector<avk::image_sampler> mImageSamplers;
 
 	// scene size
-	int32_t grid_size = 3;
+	int32_t grid_size = 1;
 	uint32_t num_instances = grid_size * 2 + 1;
 	uint32_t num_instances2 = num_instances * num_instances;
 	std::vector<glm::mat4> mInstanceMatrices;
 	std::array<avk::buffer, cConcurrentFrames> mInstanceMatricesBuffer;
 	float mTime{ 0.f };
+	float mZoom{ 5.f };
+	bool mGrow{ true };
 
 	std::vector<data_for_draw_call> mDrawCalls;
 	avk::graphics_pipeline mPipelineExt;
@@ -1332,7 +1372,7 @@ private: // v== Member variables ==v
 	int  mShowMeshletsFrom  = 0;
 	int  mShowMeshletsTo    = 0;
 	bool mUseDebugPipeline = false;
-	bool mAnimate = true;
+	bool mAnimate = false;
 
 	avk::query_pool mTimestampPool;
 	uint64_t mLastTimestamp = 0;
@@ -1349,7 +1389,7 @@ int main() // <== Starting point ==
 	int result = EXIT_FAILURE;
 	try {
 		// Create a window and open it
-		auto mainWnd = avk::context().create_window("Skinned Meshlets");
+		auto mainWnd = avk::context().create_window("Edge Contour Meshlets");
 
 		mainWnd->set_resolution({ 1920, 1080 });
 		mainWnd->enable_resizing(true);
@@ -1371,7 +1411,7 @@ int main() // <== Starting point ==
 
 		// Compile all the configuration parameters and the invokees into a "composition":
 		auto composition = configure_and_compose(
-			avk::application_name("Auto-Vk-Toolkit Example: Skinned Meshlets"),
+			avk::application_name("Edge Contour Meshlets"),
 			// Gotta enable the mesh shader extension, ...
 			avk::required_device_extensions(VK_EXT_MESH_SHADER_EXTENSION_NAME),
 			avk::optional_device_extensions(VK_NV_MESH_SHADER_EXTENSION_NAME),

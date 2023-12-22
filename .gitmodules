@@ -13,3 +13,6 @@
 [submodule "assests/meshcountours-models"]
 	path = assets/meshcountours-models
 	url = git@gitlab.inria.fr:panagiotis.tsiapkolis/meshcountours-models.git
+[submodule "assets/meshcountours-models"]
+	path = assets/meshcountours-models
+	url = git@gitlab.inria.fr:panagiotis.tsiapkolis/meshcountours-models.git

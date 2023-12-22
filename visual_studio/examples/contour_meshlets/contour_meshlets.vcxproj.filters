@@ -40,52 +40,85 @@
     <None Include="..\..\..\assets\3rd_party\models\stanford_bunny\stanford_bunny2.obj">
       <Filter>assets</Filter>
     </None>
-    <None Include="..\..\..\assets\meshcountours-models\obj-standard\bun_zipper.ply">
-      <Filter>assets</Filter>
-    </None>
     <None Include="..\..\..\assets\meshcountours-models\CubeBevel-E66\CubeBevel-E66.cmcr">
       <Filter>assets</Filter>
     </None>
     <None Include="..\..\..\assets\meshcountours-models\CubeBevel-E66\CubeBevel-E66.4.cmcp">
       <Filter>assets</Filter>
     </None>
-    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.cmcr">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.A.cmcp">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.4.cmcp">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.9.cmcp">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.1.cmcp">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.6.cmcp">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\assets\meshcountours-models\MESH_bun_zipper\MESH_bun_zipper.cmcr">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\assets\meshcountours-models\MESH_bun_zipper\MESH_bun_zipper.4.cmcp">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\assets\meshcountours-models\MESH_bun_zipper\MESH_bun_zipper.6.cmcp">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\assets\meshcountours-models\MESH_bun_zipper\MESH_bun_zipper.B.cmcp">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.B.cmcp">
-      <Filter>assets</Filter>
-    </None>
     <None Include="..\..\..\examples\contour_meshlets\shaders\debug.mesh">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.2.cmcp">
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_bun_zipper.cmcr">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_bun_zipper.G.cmcp">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Armadillo.G.cmcp">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Armadillo.cmcr">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_dragon_vrip.G.cmcp">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_dragon_vrip.cmcr">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_RomanBath.G.cmcp">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_RomanBath.cmcr">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_SpaceStation.cmcr">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_SpaceStation.G.cmcp">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_BookFantasy.cmcr">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_BookFantasy.G.cmcp">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\Chr_Pigman.G.cmcp">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\Chr_Pigman.cmcr">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\Chr_Tuba.cmcr">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\Chr_Tuba.G.cmcp">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_Vigilant.G.cmcp">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_Vigilant.cmcr">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\bun_zipper.obj">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\3rd_party\models\stanford_bunny\stanford_bunny3.obj">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_SpaceStationNoDebris.cmcr">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_SpaceStationNoDebris.G.cmcp">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\GawainFull.G.cmcp">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\GawainFull.cmcr">
       <Filter>assets</Filter>
     </None>
   </ItemGroup>

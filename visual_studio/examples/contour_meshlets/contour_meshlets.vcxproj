@@ -19,21 +19,30 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\examples\contour_meshlets\shaders\cpu_gpu_shared_config.h" />
-    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.1.cmcp" />
-    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.2.cmcp" />
-    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.4.cmcp" />
-    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.6.cmcp" />
-    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.9.cmcp" />
-    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.A.cmcp" />
-    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.B.cmcp" />
-    <None Include="..\..\..\assets\meshcountours-models\bunny_and_friends\MESH_bunny.cmcr" />
     <None Include="..\..\..\assets\meshcountours-models\CubeBevel-E66\CubeBevel-E66.4.cmcp" />
     <None Include="..\..\..\assets\meshcountours-models\CubeBevel-E66\CubeBevel-E66.cmcr" />
-    <None Include="..\..\..\assets\meshcountours-models\MESH_bun_zipper\MESH_bun_zipper.4.cmcp" />
-    <None Include="..\..\..\assets\meshcountours-models\MESH_bun_zipper\MESH_bun_zipper.6.cmcp" />
-    <None Include="..\..\..\assets\meshcountours-models\MESH_bun_zipper\MESH_bun_zipper.B.cmcp" />
-    <None Include="..\..\..\assets\meshcountours-models\MESH_bun_zipper\MESH_bun_zipper.cmcr" />
-    <None Include="..\..\..\assets\meshcountours-models\obj-standard\bun_zipper.ply" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\Chr_Pigman.cmcr" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\Chr_Pigman.G.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\Chr_Tuba.cmcr" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\Chr_Tuba.G.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\GawainFull.cmcr" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\GawainFull.G.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Armadillo.cmcr" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Armadillo.G.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_bun_zipper.cmcr" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_bun_zipper.G.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_dragon_vrip.cmcr" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_dragon_vrip.G.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_BookFantasy.cmcr" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_BookFantasy.G.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_RomanBath.cmcr" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_RomanBath.G.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_SpaceStation.cmcr" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_SpaceStation.G.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_SpaceStationNoDebris.cmcr" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_SpaceStationNoDebris.G.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_Vigilant.cmcr" />
+    <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_Vigilant.G.cmcp" />
     <None Include="..\..\..\examples\contour_meshlets\shaders\mesh.glsl">
       <FileType>Document</FileType>
     </None>
@@ -68,6 +77,16 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\assets\3rd_party\models\stanford_bunny\stanford_bunny2.obj">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\assets\bun_zipper.obj">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\assets\3rd_party\models\stanford_bunny\stanford_bunny3.obj">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

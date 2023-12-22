@@ -67,18 +67,82 @@ layout (location = 0) out PerVertexData
 } v_out[];   // [max_vertices]
   
 // Color table for drawing each meshlet with a different color:
-#define MAX_COLORS 10
+#define MAX_COLORS 64
 vec3 meshletcolors[MAX_COLORS] = {
-  vec3(0.9, 0.1, 0.1), 
-  vec3(0.7, 0.2, 0.2), 
-  vec3(0.5, 0.3, 0.3), 
-  vec3(0.3, 0.4, 0.5), 
-  vec3(0.2, 0.5, 0.7), 
-  vec3(0.1, 0.7, 0.9), 
-  vec3(0.3, 0.6, 0.8), 
-  vec3(0.6, 0.8, 0.9), 
-  vec3(0.8, 0.9, 0.95),
-  vec3(1.0, 1.0, 1.0)  
+//  vec3(0.9, 0.1, 0.1), 
+//  vec3(0.7, 0.2, 0.2), 
+//  vec3(0.5, 0.3, 0.3), 
+//  vec3(0.3, 0.4, 0.5), 
+//  vec3(0.2, 0.5, 0.7), 
+//  vec3(0.1, 0.7, 0.9), 
+//  vec3(0.3, 0.6, 0.8), 
+//  vec3(0.6, 0.8, 0.9), 
+//  vec3(0.8, 0.9, 0.95),
+//  vec3(1.0, 1.0, 1.0)  
+vec3(228,137,142),
+vec3(121,91,28),
+vec3(125,91,152),
+vec3(206,61,41),
+vec3(93,103,156),
+vec3(236,132,100),
+vec3(153,70,146),
+vec3(147,133,52),
+vec3(147,70,84),
+vec3(76,106,24),
+vec3(80,94,37),
+vec3(226,66,86),
+vec3(102,139,224),
+vec3(67,196,128),
+vec3(182,177,70),
+vec3(227,113,174),
+vec3(174,51,111),
+vec3(103,133,71),
+vec3(69,132,185),
+vec3(62,85,201),
+vec3(132,127,73),
+vec3(169,129,227),
+vec3(50,114,59),
+vec3(65,126,237),
+vec3(160,77,202),
+vec3(79,198,86),
+vec3(109,83,184),
+vec3(32,110,84),
+vec3(165,117,71),
+vec3(72,205,207),
+vec3(83,153,91),
+vec3(89,173,224),
+vec3(101,100,19),
+vec3(112,177,42),
+vec3(224,179,65),
+vec3(167,186,115),
+vec3(117,112,236),
+vec3(179,105,43),
+vec3(218,168,114),
+vec3(218,116,221),
+vec3(110,191,146),
+vec3(177,113,171),
+vec3(113,85,167),
+vec3(217,97,43),
+vec3(204,63,165),
+vec3(150,77,114),
+vec3(229,65,129),
+vec3(178,88,75),
+vec3(149,71,35),
+vec3(58,147,113),
+vec3(217,150,210),
+vec3(52,100,171),
+vec3(141,74,170),
+vec3(88,96,177),
+vec3(181,139,42),
+vec3(136,192,91),
+vec3(174,189,46),
+vec3(111,140,45),
+vec3(226,143,48),
+vec3(58,144,46),
+vec3(205,95,123),
+vec3(182,52,69),
+vec3(46,165,155),
+vec3(163,160,22)
 };
 
 uint hash(uint a)
@@ -191,10 +255,10 @@ void main()
  
 		// Set the per vertex data for the fragment shader:
 		v_out[i].positionWS = posWS.xyz;
-		v_out[i].normalWS = mat3(transformationMatrix) * aniNrm;
+		v_out[i].normalWS = mat3(instanceMatrices.mat[instanceId]) * mat3(transformationMatrix) * aniNrm;
 		v_out[i].texCoord = texelFetch(texCoordsBuffers[texelBufferIndex], int(vi)).st;
 		v_out[i].materialIndex = int(materialIndex);
-		v_out[i].color = mcolor; //meshletcolors[meshletIndex % MAX_COLORS];
+		v_out[i].color = meshletcolors[meshletIndex % MAX_COLORS] / 255;
 	}
  
 	barrier();
