@@ -244,9 +244,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		if (avk::input().key_pressed(avk::key_code::space)) {
 			// Print the current camera position
 			auto pos = mQuakeCam.translation();
-			LOG_INFO(fmt::format("Current camera position: {}", avk::to_string(pos)));
+			LOG_INFO(std::format("Current camera position: {}", avk::to_string(pos)));
 		}
-		if (avk::input().key_pressed(avk::key_code::escape)) {
+		if (avk::input().key_pressed(avk::key_code::escape) || avk::context().main_window()->should_be_closed()) {
 			// Stop the current composition:
 			avk::current_composition()->stop();
 		}
@@ -463,13 +463,14 @@ int main() // <== Starting point ==
 			avk::application_name("Auto-Vk-Toolkit Example: Ray Query in Ray Tracing Shaders"),
 			avk::required_device_extensions()
 			// We need several extensions for ray tracing:
-			.add_extension(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME)
-			.add_extension(VK_KHR_RAY_QUERY_EXTENSION_NAME)
-			.add_extension(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME)
-			.add_extension(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME)
-			.add_extension(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME)
-			.add_extension(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME)
-			.add_extension(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME),
+				.add_extension(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME)
+				.add_extension(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME)
+				.add_extension(VK_KHR_RAY_QUERY_EXTENSION_NAME)
+				.add_extension(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME)
+				.add_extension(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME)
+				.add_extension(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME)
+				.add_extension(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME)
+				.add_extension(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME),
 			[](vk::PhysicalDeviceVulkan12Features& aVulkan12Featues) {
 				// Also this Vulkan 1.2 feature is required for ray tracing:
 				aVulkan12Featues.setBufferDeviceAddress(VK_TRUE);
