@@ -245,7 +245,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			mUpdateToRenderDependency = std::move(semaphore);
 		}
 
-		if (avk::input().key_pressed(avk::key_code::escape)) {
+		if (avk::input().key_pressed(avk::key_code::escape) || avk::context().main_window()->should_be_closed()) {
 			// Stop the current composition:
 			avk::composition_interface::current()->stop();
 		}
@@ -379,13 +379,13 @@ int main() // <== Starting point ==
 		auto composition = configure_and_compose(
 			avk::application_name("Auto-Vk-Toolkit Example: Compute Image Effects Exampl"),
 			[](avk::validation_layers& config) {
-				config.enable_feature(vk::ValidationFeatureEnableEXT::eSynchronizationValidation);
+				//config.enable_feature(vk::ValidationFeatureEnableEXT::eSynchronizationValidation);
 			},
 			// Pass windows:
-				mainWnd,
-				// Pass invokees:
-				app, ui
-				);
+			mainWnd,
+			// Pass invokees:
+			app, ui
+		);
 
 		// Create an invoker object, which defines the way how invokees/elements are invoked
 		// (In this case, just sequentially in their execution order):

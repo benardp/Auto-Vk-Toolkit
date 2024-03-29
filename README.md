@@ -44,6 +44,8 @@ Some of its highlight-features (besides the awesome features of [_Auto-Vk_](http
 
 *Auto-Vk-Toolkit* is ready to go with Visual Studio or CMake. If your system meets the system requirements, everything is set up to build an run right out of the box. E.g., for Visual Studio, open [`visual_studio/auto_vk_toolkit.sln`](./visual_studio/), set one of the example projects as startup project, build and run!
 
+**_Hint:_** The version on the **[development](https://github.com/cg-tuwien/Auto-Vk-Toolkit/tree/development) branch** might be more up-to-date and contain additional features and fixes. Please consider using that version, especially if you encounter problems.
+
 *Note:* At the first run, the _Post Build Helper_ tool is being built. Watch Visual Studio's "Output" tab for status messages and possible instructions.
 
 ## Visual Studio 2022
@@ -52,12 +54,12 @@ A preconfigured project setup is provided for Visual Studio 2022 on Windows.
 ### Requirements
 * Windows 10 or 11
 * Visual Studio 2022 with a Windows 10 or 11 SDK installed (For detailed information about project setup and resource management please refer to [`visual_studio/README.md`](./visual_studio/README.md).)
-* A [Vulkan SDK from LunarG](https://vulkan.lunarg.com/sdk/home), optimally Vulkan SDK 1.3.250.0 or newer.
+* A [Vulkan 1.3 SDK from LunarG](https://vulkan.lunarg.com/sdk/home), optimally Vulkan SDK 1.3.250.0 or newer.
 
 ### Setup and build instructions
 * Clone or download this repository
 * Execute `git submodule update --init` to pull the [_Auto-Vk_](https://github.com/cg-tuwien/Auto-Vk) framework which is added as a submodule under `auto_vk`
-* Download and install one of the latest [Vulkan SDKs for Windows](https://vulkan.lunarg.com/sdk/home#windows)! (At time of writing, the most recent version is 1.3.250.0.)
+* Download and install one of the latest [Vulkan SDKs for Windows](https://vulkan.lunarg.com/sdk/home#windows)!
     * Select the `Vulkan Memory Allocator header.` option so that the [Vulkan Memory Allocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator) (VMA) library is installed. 
     * _Note:_ VMA can be installed through the Vulkan installer or its maintenance tool (e.g., `maintenancetool.exe` on Windows) by selecting the `Vulkan Memory Allocator header.` option.
 * Download and install [Visual Studio Community 2022](https://visualstudio.microsoft.com/vs/community/), or a newer version.
@@ -72,6 +74,9 @@ A preconfigured project setup is provided for Visual Studio 2022 on Windows.
 * To add _Auto-Vk-Toolkit_ to one of your custom repositories, you might want to add it as a GIT submodule. You could execute `git submodule add https://github.com/cg-tuwien/Auto-Vk-Toolkit.git auto_vk_toolkit` to add _Auto-Vk-Toolkit_ as submodule in directory `auto_vk_toolkit`.
 * Execute `git submodule update --init --recursive` in order to pull both, _Auto-Vk-Toolkit_ and [_Auto-Vk_](https://github.com/cg-tuwien/Auto-Vk).
 * The steps described under section [Creating a New Project](#creating-a-new-project) might be helpful for setting up a custom Visual Studio project that links against _Auto-Vk-Toolkit_.
+* The most convenient way to set up you own project might be one of the starter templates:
+  * Starter template for Visual Studio-based projects: [Auto-Vk-Toolkit-VS-Starter](https://github.com/cg-tuwien/Auto-Vk-Toolkit-VS-Starter)
+  * Starter template for CMake-based projects: [Auto-Vk-Toolkit-Starter](https://github.com/JolifantoBambla/Auto-Vk-Toolkit-Starter)
 
 ## CMake
 
