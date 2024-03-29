@@ -19,8 +19,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\examples\contour_meshlets\shaders\cpu_gpu_shared_config.h" />
-    <None Include="..\..\..\assets\meshcountours-models\CubeBevel-E66\CubeBevel-E66.4.cmcp" />
-    <None Include="..\..\..\assets\meshcountours-models\CubeBevel-E66\CubeBevel-E66.cmcr" />
     <None Include="..\..\..\assets\meshcountours-models\ubislurm\Chr_Pigman.cmcr" />
     <None Include="..\..\..\assets\meshcountours-models\ubislurm\Chr_Pigman.G.cmcp" />
     <None Include="..\..\..\assets\meshcountours-models\ubislurm\Chr_Tuba.cmcr" />
@@ -43,6 +41,9 @@
     <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_SpaceStationNoDebris.G.cmcp" />
     <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_Vigilant.cmcr" />
     <None Include="..\..\..\assets\meshcountours-models\ubislurm\MESH_Env_Vigilant.G.cmcp" />
+    <None Include="..\..\..\examples\contour_meshlets\shaders\contours.comp" />
+    <None Include="..\..\..\examples\contour_meshlets\shaders\contours.vert" />
+    <None Include="..\..\..\examples\contour_meshlets\shaders\culling.comp" />
     <None Include="..\..\..\examples\contour_meshlets\shaders\mesh.glsl">
       <FileType>Document</FileType>
     </None>

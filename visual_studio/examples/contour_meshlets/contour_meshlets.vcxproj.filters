@@ -40,12 +40,6 @@
     <None Include="..\..\..\assets\3rd_party\models\stanford_bunny\stanford_bunny2.obj">
       <Filter>assets</Filter>
     </None>
-    <None Include="..\..\..\assets\meshcountours-models\CubeBevel-E66\CubeBevel-E66.cmcr">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\assets\meshcountours-models\CubeBevel-E66\CubeBevel-E66.4.cmcp">
-      <Filter>assets</Filter>
-    </None>
     <None Include="..\..\..\examples\contour_meshlets\shaders\debug.mesh">
       <Filter>shaders</Filter>
     </None>
@@ -120,6 +114,15 @@
     </None>
     <None Include="..\..\..\assets\meshcountours-models\ubislurm\GawainFull.cmcr">
       <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\examples\contour_meshlets\shaders\contours.comp">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\..\examples\contour_meshlets\shaders\culling.comp">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\..\examples\contour_meshlets\shaders\contours.vert">
+      <Filter>shaders</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

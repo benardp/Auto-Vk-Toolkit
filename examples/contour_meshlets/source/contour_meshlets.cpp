@@ -42,6 +42,12 @@ class skinned_meshlets_app : public avk::invokee
 		int32_t    mNbInstances;
 	};
 
+	struct alignas(16) vertex_constants
+	{
+		glm::mat4  mModelMatrix;
+		int32_t    mMaterialIndex;
+	};
+
 	struct view_info
 	{
 		glm::mat4 mViewProjMatrix;
@@ -232,14 +238,14 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		SceneData* sceneData = CMCInternal_GetSceneData();
 		//char* filepath = (char*)"assets/MESH_dragon_vrip.cmcr";
 		//char* filepath = (char*) "assets/MESH_Armadillo.cmcr";
-		//char* filepath = (char*)"assets/MESH_bun_zipper.cmcr";
+		char* filepath = (char*)"assets/MESH_bun_zipper.cmcr";
 		//char* filepath = (char*)"assets/MESH_Env_RomanBath.cmcr";
 		//char* filepath = (char*)"assets/MESH_Env_SpaceStationNoDebris.cmcr";
 		//char* filepath = (char*)"assets/MESH_Env_BookFantasy.cmcr";
 		//char* filepath = (char*)"assets/MESH_Env_Vigilant.cmcr";
 		//char* filepath = (char*)"assets/Chr_Pigman.cmcr";
 		//char* filepath = (char*)"assets/Chr_Tuba.cmcr";
-		char* filepath = (char*)"assets/GawainFull.cmcr";
+		//char* filepath = (char*)"assets/GawainFull.cmcr";
 		MeshletData* mData = CMCInternal_LoadNewMeshletDataFromDisk(filepath);
 		ProxyMesh* pMesh = CMCInternal_LoadProxyMeshFromBasePath(mData, (mData->proxyMeshes + LODMETHOD_GPU_MESHSHADER_REDUCEDSPHERE), LODMETHOD_GPU_MESHSHADER_REDUCEDSPHERE, filepath);
 
@@ -258,6 +264,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		const uint32_t cStartTimeTicks = 0;
 		const uint32_t cEndTimeTicks   = 58;
 		const uint32_t cTicksPerSecond = 34;
+
+		mNumTotalEdges = 0;
 
 		// Generate the meshlets for each loaded model.
 		for (size_t i = 0; i < loadedModels.size(); ++i) {
@@ -381,6 +389,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					std::map<avk::model_t::Edge, avk::model_t::Neighbors, avk::model_t::CompareEdges> adjacency;
 					std::map<avk::model_t::Edge, bool, avk::model_t::CompareEdges> visitedEdges;
 					curModel->findAdjacencies(meshIndex, adjacency);
+					mNumTotalEdges += adjacency.size();
 					LOG_INFO(std::format("nb edges: {}", adjacency.size()));
 
 					auto texelBufferIndex = dataForDrawCall.size();
@@ -817,40 +826,41 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 							cpuMeshlet->coneCutoff = patch.ndfConeAngleRadians;
 						}
 
-						avk::meshlet* cpuMeshlet;
-						if(pMesh->nbFreeEdges > 0) cpuMeshlet = &extraMeshlets.emplace_back();
-						std::map<int, unsigned int> indicesMap;
-						for (size_t k = 0; k < pMesh->nbFreeEdges; k++) {
-							int eId = pMesh->freeEdgesIDs[k];
-							for (size_t j = 0; j < 4; ++j) {
-								int idx = mData->topoWingedEdgeVVVV[4 * eId + j];
-								if (idx == -1) {
-									idx = 0; // boundary
+						if (pMesh->nbFreeEdges > 0) {
+							avk::meshlet* cpuMeshlet = &extraMeshlets.emplace_back();
+							std::map<int, unsigned int> indicesMap;
+							for (size_t k = 0; k < pMesh->nbFreeEdges; k++) {
+								int eId = pMesh->freeEdgesIDs[k];
+								for (size_t j = 0; j < 4; ++j) {
+									int idx = mData->topoWingedEdgeVVVV[4 * eId + j];
+									if (idx == -1) {
+										idx = 0; // boundary
+									}
+									if (indicesMap.find(idx) == indicesMap.end()) {
+										indicesMap[idx] = cpuMeshlet->mVertices.size();
+										cpuMeshlet->mVertices.push_back(idx);
+									}
+									cpuMeshlet->mIndices.push_back(indicesMap[idx]);
 								}
-								if (indicesMap.find(idx) == indicesMap.end()) {
-									indicesMap[idx] = cpuMeshlet->mVertices.size();
-									cpuMeshlet->mVertices.push_back(idx);
+								if (cpuMeshlet->mVertices.size() >= 60 || cpuMeshlet->mIndices.size() / 4 == 126) {
+									//LOG_WARNING(std::format("Patch too big {} vertices, {} faces", cpuMeshlet->mVertices.size(), cpuMeshlet->mIndices.size() / 4));
+									cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
+									cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
+									cpuMeshlet->coneCutoff = 3.14;
+									cpuMeshlet->radius = 0;
+
+									cpuMeshlet = &extraMeshlets.emplace_back();
+									indicesMap.clear();
 								}
-								cpuMeshlet->mIndices.push_back(indicesMap[idx]);
 							}
-							if (cpuMeshlet->mVertices.size() >= 60 || cpuMeshlet->mIndices.size() / 4 == 126) {
-								//LOG_WARNING(std::format("Patch too big {} vertices, {} faces", cpuMeshlet->mVertices.size(), cpuMeshlet->mIndices.size() / 4));
+							if (extraMeshlets.size() > 0) {
 								cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
 								cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
+
 								cpuMeshlet->coneCutoff = 3.14;
 								cpuMeshlet->radius = 0;
-
-								cpuMeshlet = &extraMeshlets.emplace_back();
-								indicesMap.clear();
+								cpuMeshlets.insert(cpuMeshlets.end(), std::make_move_iterator(extraMeshlets.begin()), std::make_move_iterator(extraMeshlets.end()));
 							}
-						}
-						if (extraMeshlets.size() > 0) {
-							cpuMeshlet->mVertexCount = cpuMeshlet->mVertices.size();
-							cpuMeshlet->mIndexCount = cpuMeshlet->mIndices.size();
-
-							cpuMeshlet->coneCutoff = 3.14;
-							cpuMeshlet->radius = 0;
-							cpuMeshlets.insert(cpuMeshlets.end(), std::make_move_iterator(extraMeshlets.begin()), std::make_move_iterator(extraMeshlets.end()));
 						}
 					}
 
@@ -871,6 +881,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					drawCallData.mIndicesData = std::move(gpuIndicesData.value());
 #endif
 
+					mNumTotalEdges = 0;
 					// fill our own meshlets with the loaded/generated data
 					for (size_t mshltidx = 0; mshltidx < gpuMeshlets.size(); ++mshltidx) {
 						auto& genMeshlet = gpuMeshlets[mshltidx];
@@ -886,6 +897,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 						ml.mGeometry = genMeshlet;
 						assert(cpuMeshlet.mIndexCount % 4 == 0);
 						ml.mGeometry.mPrimitiveCount = cpuMeshlet.mIndexCount / 4;
+						mNumTotalEdges += ml.mGeometry.mPrimitiveCount;
 						assert(ml.mGeometry.mPrimitiveCount <= 126);
 						assert(ml.mGeometry.mVertexCount <= 64);
 						ml.mAnimated = false;
@@ -942,6 +954,19 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		);
 		mNumMeshlets = static_cast<uint32_t>(meshletsGeometry.size());
 		mShowMeshletsTo = static_cast<int>(mNumMeshlets);
+		
+		// Create buffer to store indices of visible meshlets and total number
+		mMeshletIndices = avk::context().create_buffer(
+			avk::memory_usage::device, {},
+			avk::storage_buffer_meta::create_from_size(2 * mNumMeshlets * sizeof(uint32_t))
+		);
+
+		// Create buffer to store indices of visible contours
+		mContourIndices = avk::context().create_buffer(
+			avk::memory_usage::device, {},
+			avk::index_buffer_meta::create_from_element_size(sizeof(uint32_t), 2 * mNumTotalEdges),
+			avk::storage_buffer_meta::create_from_size(sizeof(uint32_t) * 2 * mNumTotalEdges)
+		);
 
 		// For all the different materials, transfer them in structs which are well
 		// suited for GPU-usage (proper alignment, and containing only the relevant data),
@@ -991,13 +1016,32 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		LOG_INFO(std::format("This device supports the following subgroup operations: {}", vk::to_string(subgroupProps.supportedOperations)));
 		LOG_INFO(std::format("This device supports subgroup operations in the following stages: {}", vk::to_string(subgroupProps.supportedStages)));
 		mTaskInvocationsExt = meshShaderProps.maxPreferredTaskWorkGroupInvocations;
+		mComputeInvocations = subgroupProps.subgroupSize;
 
 		mIndirectDrawParam.emplace_back(vk::DrawMeshTasksIndirectCommandEXT(avk::div_ceil(mNumMeshlets* num_instances2, mTaskInvocationsExt), 1, 1));
 		//mIndirectDrawParam.emplace_back(vk::DrawMeshTasksIndirectCommandEXT(avk::div_ceil(mNumMeshlets, mTaskInvocationsExt), 1, 1));
-		mIndirectDrawParamBuffer = avk::context().create_buffer(
+		mDrawIndirectMeshletBuffer = avk::context().create_buffer(
 			avk::memory_usage::host_coherent, {},
 			avk::indirect_buffer_meta::create_from_data(mIndirectDrawParam));
-		auto emptyCommand2 = mIndirectDrawParamBuffer->fill(mIndirectDrawParam.data(), 0);
+		auto emptyCommand2 = mDrawIndirectMeshletBuffer->fill(mIndirectDrawParam.data(), 0);
+
+		mDispatchIndirectCommandBuffer = avk::context().create_buffer(
+			avk::memory_usage::host_coherent, {},
+			avk::indirect_buffer_meta::create_from_size(sizeof(vk::DispatchIndirectCommand)),
+			avk::storage_buffer_meta::create_from_size(sizeof(vk::DispatchIndirectCommand)));
+
+		mDrawIndexedIndirectBuffer = avk::context().create_buffer(
+			avk::memory_usage::host_coherent, {},
+			avk::indirect_buffer_meta::create_from_num_elements_for_draw_indexed_indirect(1),
+			avk::storage_buffer_meta::create_from_size(sizeof(vk::DrawIndexedIndirectCommand)));
+
+		vk::DispatchIndirectCommand dispatchCommand = { 0, 1, 1 };
+		vk::DrawIndexedIndirectCommand indexedIndirectCommand = { 0, 1, 0, 0, 0 };
+
+		avk::context().record_and_submit_with_fence({
+			mDispatchIndirectCommandBuffer->fill(&dispatchCommand, 0),
+			mDrawIndexedIndirectBuffer->fill(&indexedIndirectCommand, 0)
+			}, * mQueue)->wait_until_signalled();
 
 		// Create our graphics mesh pipeline with the required configuration:
 		auto createGraphicsMeshPipeline = [this](auto taskShader, auto meshShader, uint32_t taskInvocations, uint32_t meshInvocations) {
@@ -1013,6 +1057,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			    avk::cfg::front_face::define_front_faces_to_be_counter_clockwise(),
 			    avk::cfg::viewport_depth_scissors_config::from_framebuffer(avk::context().main_window()->backbuffer_reference_at_index(0)),
 				avk::cfg::polygon_drawing(avk::cfg::polygon_drawing::dynamic_for_lines()),
+				avk::cfg::primitive_topology::lines,
 			    // We'll render to the back buffer, which has a color attachment always, and in our case additionally a depth
 			    // attachment, which has been configured when creating the window. See main() function!
 			    avk::context().create_renderpass({
@@ -1048,7 +1093,6 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mUpdater.emplace();
 		mUpdater->on(avk::shader_files_changed_event(mPipelineExt.as_reference())).update(mPipelineExt);
 
-
 		mPipelineDebug = createGraphicsMeshPipeline(
 			"shaders/meshlet.task", "shaders/debug.mesh", 
 			meshShaderProps.maxPreferredTaskWorkGroupInvocations,
@@ -1057,18 +1101,93 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 		mUpdater->on(avk::shader_files_changed_event(mPipelineDebug.as_reference())).update(mPipelineDebug);
 
+		// Create compute pipelines:
+		mComputeCullingPipeline = avk::context().create_compute_pipeline_for(
+			avk::compute_shader("shaders/culling.comp")
+				.set_specialization_constant(0, mComputeInvocations),
+			avk::push_constant_binding_data{ avk::shader_type::all, 0, sizeof(push_constants) },
+			avk::descriptor_binding(0, 1, mViewProjBuffers[0]),
+			avk::descriptor_binding(1, 1, mInstanceMatricesBuffer[0]),
+			avk::descriptor_binding(4, 0, mMeshletsBuffer),
+			avk::descriptor_binding(5, 0, mMeshletIndices),
+			avk::descriptor_binding(5, 1, mDispatchIndirectCommandBuffer->as_storage_buffer())
+		);
+		mUpdater->on(avk::shader_files_changed_event(mComputeCullingPipeline.as_reference())).update(mComputeCullingPipeline);
+
+		mComputeContourPipeline = avk::context().create_compute_pipeline_for(
+			avk::compute_shader("shaders/contours.comp")
+				.set_specialization_constant(0, mComputeInvocations),
+			avk::push_constant_binding_data{ avk::shader_type::all, 0, sizeof(push_constants) },
+			avk::descriptor_binding(0, 0, avk::as_combined_image_samplers(mImageSamplers, avk::layout::shader_read_only_optimal)),
+			avk::descriptor_binding(0, 1, mViewProjBuffers[0]),
+			avk::descriptor_binding(1, 1, mInstanceMatricesBuffer[0]),
+			avk::descriptor_binding(2, 0, mBoneMatricesBuffersAni[0]),
+			// texel buffers
+			avk::descriptor_binding(3, 0, avk::as_uniform_texel_buffer_views(mPositionBuffers)),
+			avk::descriptor_binding(3, 2, avk::as_uniform_texel_buffer_views(mNormalBuffers)),
+			avk::descriptor_binding(3, 3, avk::as_uniform_texel_buffer_views(mTexCoordsBuffers)),
+#if USE_REDIRECTED_GPU_DATA
+			avk::descriptor_binding(3, 4, avk::as_storage_buffers(mIndicesDataBuffers)),
+#endif
+			avk::descriptor_binding(3, 5, avk::as_uniform_texel_buffer_views(mBoneIndicesBuffers)),
+			avk::descriptor_binding(3, 6, avk::as_uniform_texel_buffer_views(mBoneWeightsBuffers)),
+			avk::descriptor_binding(4, 0, mMeshletsBuffer),
+			avk::descriptor_binding(5, 0, mMeshletIndices),
+			avk::descriptor_binding(6, 0, mContourIndices->as_storage_buffer()),
+			avk::descriptor_binding(6, 1, mDrawIndexedIndirectBuffer->as_storage_buffer())
+		);
+		mUpdater->on(avk::shader_files_changed_event(mComputeContourPipeline.as_reference())).update(mComputeContourPipeline);
+
+		
+		// Create edge drawing pipeline:
+		mPipelineDrawEdges = avk::context().create_graphics_pipeline_for(
+			avk::vertex_shader("shaders/contours.vert"),									// Add a vertex shader
+			avk::fragment_shader("shaders/diffuse_shading_fixed_lightsource.frag"),         // Add a fragment shader
+			avk::from_buffer_binding(0)->stream_per_vertex<glm::vec3>()->to_location(0), // <-- corresponds to vertex shader's inPosition
+			avk::from_buffer_binding(1)->stream_per_vertex<glm::vec2>()->to_location(1), // <-- corresponds to vertex shader's inTexCoord
+			avk::from_buffer_binding(2)->stream_per_vertex<glm::vec3>()->to_location(2), // <-- corresponds to vertex shader's inNormal
+			// Some further settings:
+			avk::cfg::front_face::define_front_faces_to_be_counter_clockwise(),
+			avk::cfg::viewport_depth_scissors_config::from_framebuffer(avk::context().main_window()->backbuffer_reference_at_index(0)),
+			avk::cfg::polygon_drawing(avk::cfg::polygon_drawing::dynamic_for_lines()),
+			avk::cfg::primitive_topology::lines,
+			// We'll render to the back buffer, which has a color attachment always, and in our case additionally a depth
+			// attachment, which has been configured when creating the window. See main() function!
+			avk::context().create_renderpass({
+				avk::attachment::declare(avk::format_from_window_color_buffer(avk::context().main_window()), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::color(0)     , avk::on_store::store).set_clear_color({1.f, 1.f, 1.f, 0.0f}),
+				avk::attachment::declare(avk::format_from_window_depth_buffer(avk::context().main_window()), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::depth_stencil, avk::on_store::dont_care)
+				}, avk::context().main_window()->renderpass_reference().subpass_dependencies()),
+			avk::push_constant_binding_data{ avk::shader_type::all, 0, sizeof(vertex_constants) },
+			avk::descriptor_binding(0, 0, avk::as_combined_image_samplers(mImageSamplers, avk::layout::shader_read_only_optimal)),
+			avk::descriptor_binding(0, 1, mViewProjBuffers[0]),
+			avk::descriptor_binding(1, 0, mMaterialBuffer),
+			avk::descriptor_binding(1, 1, mInstanceMatricesBuffer[0]),
+			avk::descriptor_binding(2, 0, mBoneMatricesBuffersAni[0]),
+			// texel buffers
+			avk::descriptor_binding(3, 0, avk::as_uniform_texel_buffer_views(mPositionBuffers)),
+			avk::descriptor_binding(3, 2, avk::as_uniform_texel_buffer_views(mNormalBuffers)),
+			avk::descriptor_binding(3, 3, avk::as_uniform_texel_buffer_views(mTexCoordsBuffers)),
+#if USE_REDIRECTED_GPU_DATA
+			avk::descriptor_binding(3, 4, avk::as_storage_buffers(mIndicesDataBuffers)),
+#endif
+			avk::descriptor_binding(3, 5, avk::as_uniform_texel_buffer_views(mBoneIndicesBuffers)),
+			avk::descriptor_binding(3, 6, avk::as_uniform_texel_buffer_views(mBoneWeightsBuffers)),
+			avk::descriptor_binding(4, 0, mMeshletsBuffer)
+		);
+
+		mUpdater->on(avk::shader_files_changed_event(mPipelineDrawEdges.as_reference())).update(mPipelineDrawEdges);
 
 		// Add the camera to the composition (and let it handle the updates)
 		float sceneSize = mSceneBBox.diagonal().norm() * num_instances;
 		glm::vec3 sceneCenter = glm::vec3(mSceneBBox.center().x(), mSceneBBox.center().y(), mSceneBBox.center().z());
-		mZoom = 2.f * mSceneBBox.diagonal().norm();
-		mOrbitCam.set_translation(sceneCenter - glm::vec3(mZoom, 0.0f, 0.0f ));
+		//mZoom = 2.f * mSceneBBox.diagonal().norm();
+		mOrbitCam.set_translation(sceneCenter + glm::vec3(0.0f, 2.f * mSceneBBox.diagonal().norm(), 0.0f ));
 		mOrbitCam.look_at(sceneCenter);
 		mOrbitCam.set_pivot_distance(sqrt(2.f)*sceneSize);
 		mQuakeCam.set_translation({ 0.0f, sceneSize, 0.0f });
 		mQuakeCam.look_at(sceneCenter);
-		mOrbitCam.set_perspective_projection(glm::radians(60.0f), avk::context().main_window()->aspect_ratio(), 0.3f, 1000.0f);
-		mQuakeCam.set_perspective_projection(glm::radians(60.0f), avk::context().main_window()->aspect_ratio(), 0.3f, 1000.0f);
+		mOrbitCam.set_perspective_projection(glm::radians(60.0f), avk::context().main_window()->aspect_ratio(), 0.3f, 10000.0f);
+		mQuakeCam.set_perspective_projection(glm::radians(60.0f), avk::context().main_window()->aspect_ratio(), 0.3f, 10000.0f);
 		avk::current_composition()->add_element(mOrbitCam);
 		avk::current_composition()->add_element(mQuakeCam);
 		mQuakeCam.disable();
@@ -1125,9 +1244,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				ImGui::Separator();
 
 				ImGui::Separator();
-				int choice = mUseDebugPipeline ? 1 : 0;
-				ImGui::Combo("Pipeline", &choice, "Contours\0Debug\0");
-				mUseDebugPipeline = (choice == 1);
+				ImGui::Combo("Pipeline", &mPipelineMode, "Contours\0Debug\0Compute\0");
 				ImGui::Separator();
 
 				// Select the range of meshlets to be rendered:
@@ -1137,6 +1254,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				ImGui::Text("Select meshlets to be rendered:");
 				ImGui::DragIntRange2("Visible range", &mShowMeshletsFrom, &mShowMeshletsTo, 1, 0, static_cast<int>(mNumMeshlets));
 				ImGui::Checkbox("Animate", &mAnimate);
+				ImGui::Text("Num total edges : %lu", mNumTotalEdges);
 
 				ImGui::End();
 			});
@@ -1198,15 +1316,15 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		}
 
 		float sceneDiag = mSceneBBox.diagonal().norm();
-		glm::vec3 sceneCenter = glm::vec3(0, 0, 0); //glm::vec3(mSceneBBox.center().x(), mSceneBBox.center().y(), mSceneBBox.center().z());
+		glm::vec3 sceneCenter = glm::vec3(mSceneBBox.center().x(), mSceneBBox.center().y(), mSceneBBox.center().z()); //glm::vec3(0, 0, 0); 
 		if (mAnimate) {
 			mTime = avk::time().absolute_time_dp();
 			if (mZoom > 50) mGrow = false;
 			if (mZoom < 1.5) mGrow = true;
-			float speed = 5.f * std::exp((mZoom - 1.5f) / 50.f);
+			float speed = 2.f * std::exp((mZoom - 1.5f) / 50.f);
 			mZoom = mGrow ? mZoom + avk::time().delta_time() * speed : mZoom - avk::time().delta_time() * speed;
-			mOrbitCam.set_translation({ 0.0f, mZoom * sceneDiag, 0.0f });
-			mOrbitCam.look_at(sceneCenter);
+			mOrbitCam.set_translation(sceneCenter + glm::vec3(0.0f, mZoom * sceneDiag, 0.0f));
+			//mOrbitCam.look_at(sceneCenter);
 		}
 		// create buffer for instances
 		for (int32_t y = -grid_size; y <= grid_size; y++) {
@@ -1252,44 +1370,164 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			mPipelineStats = mPipelineStatsPool->get_results<uint64_t, 3>(inFlightIndex, 1, vk::QueryResultFlagBits::e64);
 		}
 
-		auto& pipeline = mUseDebugPipeline ? mPipelineDebug : mPipelineExt;
+		if (mPipelineMode == 2) { // Compute pipeline
 
-		context().record(command::gather(
-			mPipelineStatsPool->reset(inFlightIndex, 1),
-			mPipelineStatsPool->begin_query(inFlightIndex),
-			mTimestampPool->reset(firstQueryIndex, 2),     // reset the two values relevant for the current frame in flight
-			mTimestampPool->write_timestamp(firstQueryIndex + 0, stage::all_commands), // measure before drawMeshTasks*
+			vk::DispatchIndirectCommand dispatchCommand = { 0, 1, 1 };
+			vk::DrawIndexedIndirectCommand indexedIndirectCommand = { 0, 1, 0, 0, 0 };
+		
+			avk::context().record(command::gather(
+				mPipelineStatsPool->reset(inFlightIndex, 1),
+				mPipelineStatsPool->begin_query(inFlightIndex),
+				mTimestampPool->reset(firstQueryIndex, 2),     // reset the two values relevant for the current frame in flight
+				mTimestampPool->write_timestamp(firstQueryIndex + 0, stage::all_commands), // measure before drawMeshTasks*
 
-			command::custom_commands([](avk::command_buffer_t& cb) { vkCmdSetLineWidth(cb.handle(), 2.f); }),
+				command::custom_commands([](avk::command_buffer_t& cb) { vkCmdSetLineWidth(cb.handle(), 2.f); }),
 
-			// Upload the updated bone matrices into the buffer for the current frame (considering that we have cConcurrentFrames-many concurrent frames):
-			command::one_for_each(mAnimatedModels, [this, inFlightIndex](const std::tuple<animated_model_data, additional_animated_model_data>& tpl) {
-				return mBoneMatricesBuffersAni[inFlightIndex][std::get<animated_model_data>(tpl).mBoneMatricesBufferIndex]->fill(std::get<additional_animated_model_data>(tpl).mBoneMatricesAni.data(), 0);
-				}),
+				// Upload the updated bone matrices into the buffer for the current frame (considering that we have cConcurrentFrames-many concurrent frames):
+				command::one_for_each(mAnimatedModels, [this, inFlightIndex](const std::tuple<animated_model_data, additional_animated_model_data>& tpl) {
+					return mBoneMatricesBuffersAni[inFlightIndex][std::get<animated_model_data>(tpl).mBoneMatricesBufferIndex]->fill(std::get<additional_animated_model_data>(tpl).mBoneMatricesAni.data(), 0);
+					}),
 
-			command::conditional([this]() { return true; }, 
-				[this, inFlightIndex]() {
-					return mInstanceMatricesBuffer[inFlightIndex]->fill(mInstanceMatrices.data(), 0);
-				}),
+				command::conditional([this]() { return true; },
+					[this, inFlightIndex]() {
+						return mInstanceMatricesBuffer[inFlightIndex]->fill(mInstanceMatrices.data(), 0);
+					}),
 
-			command::render_pass(pipeline->renderpass_reference(), context().main_window()->current_backbuffer_reference(), {
-				command::bind_pipeline(pipeline.as_reference()),
-				command::bind_descriptors(pipeline->layout(), mDescriptorCache->get_or_create_descriptor_sets({
-					descriptor_binding(0, 0, as_combined_image_samplers(mImageSamplers, layout::shader_read_only_optimal)),
-					descriptor_binding(0, 1, mViewProjBuffers[inFlightIndex]),
-					descriptor_binding(1, 0, mMaterialBuffer),
-					descriptor_binding(1, 1, mInstanceMatricesBuffer[inFlightIndex]),
-					descriptor_binding(2, 0, mBoneMatricesBuffersAni[inFlightIndex]),
-					descriptor_binding(3, 0, as_uniform_texel_buffer_views(mPositionBuffers)),
-					descriptor_binding(3, 2, as_uniform_texel_buffer_views(mNormalBuffers)),
-					descriptor_binding(3, 3, as_uniform_texel_buffer_views(mTexCoordsBuffers)),
+				mDispatchIndirectCommandBuffer->fill(&dispatchCommand, 0),
+				mDrawIndexedIndirectBuffer->fill(&indexedIndirectCommand, 0),
+
+				sync::buffer_memory_barrier(mDispatchIndirectCommandBuffer.as_reference(), stage::auto_stage + access::auto_access >> stage::none + access::none),
+				sync::buffer_memory_barrier(mDrawIndexedIndirectBuffer.as_reference(), stage::auto_stage + access::auto_access >> stage::none + access::none),
+
+				command::bind_pipeline(mComputeCullingPipeline.as_reference()),
+				command::bind_descriptors(mComputeCullingPipeline->layout(), mDescriptorCache->get_or_create_descriptor_sets({
+						descriptor_binding(0, 1, mViewProjBuffers[inFlightIndex]),
+						descriptor_binding(1, 1, mInstanceMatricesBuffer[inFlightIndex]),
+						descriptor_binding(4, 0, mMeshletsBuffer),
+						descriptor_binding(5, 0, mMeshletIndices),
+						descriptor_binding(5, 1, mDispatchIndirectCommandBuffer->as_storage_buffer())
+					})),
+				command::push_constants(mComputeCullingPipeline->layout(), push_constants{
+						mHighlightMeshlets,
+						mCullMeshlets,
+						mExtractContours,
+						static_cast<int32_t>(mShowMeshletsFrom),
+						static_cast<int32_t>(mShowMeshletsTo),
+						static_cast<int32_t>(num_instances2)
+					}),
+				command::dispatch(div_ceil(mNumMeshlets * num_instances2, mComputeInvocations),1,1),
+
+				sync::buffer_memory_barrier(mDispatchIndirectCommandBuffer.as_reference(), stage::compute_shader + access::shader_write >> stage::draw_indirect + access::memory_read),
+				sync::buffer_memory_barrier(mMeshletIndices.as_reference(), stage::compute_shader + access::shader_write >> stage::compute_shader + access::shader_read),
+
+				command::bind_pipeline(mComputeContourPipeline.as_reference()),
+				command::bind_descriptors(mComputeContourPipeline->layout(), mDescriptorCache->get_or_create_descriptor_sets({
+						descriptor_binding(0, 0, as_combined_image_samplers(mImageSamplers, avk::layout::shader_read_only_optimal)),
+						descriptor_binding(0, 1, mViewProjBuffers[inFlightIndex]),
+						descriptor_binding(1, 1, mInstanceMatricesBuffer[inFlightIndex]),
+						descriptor_binding(2, 0, mBoneMatricesBuffersAni[inFlightIndex]),
+						descriptor_binding(3, 0, as_uniform_texel_buffer_views(mPositionBuffers)),
+						descriptor_binding(3, 2, as_uniform_texel_buffer_views(mNormalBuffers)),
+						descriptor_binding(3, 3, as_uniform_texel_buffer_views(mTexCoordsBuffers)),
 #if USE_REDIRECTED_GPU_DATA
 						descriptor_binding(3, 4, avk::as_storage_buffers(mIndicesDataBuffers)),
 #endif
 						descriptor_binding(3, 5, as_uniform_texel_buffer_views(mBoneIndicesBuffers)),
 						descriptor_binding(3, 6, as_uniform_texel_buffer_views(mBoneWeightsBuffers)),
+						descriptor_binding(4, 0, mMeshletsBuffer),
+						descriptor_binding(5, 0, mMeshletIndices),
+						descriptor_binding(6, 0, mContourIndices->as_storage_buffer()),
+						descriptor_binding(6, 1, mDrawIndexedIndirectBuffer->as_storage_buffer()),
+				})),
+				command::push_constants(mComputeCullingPipeline->layout(), push_constants{
+						mHighlightMeshlets,
+						mCullMeshlets,
+						mExtractContours,
+						static_cast<int32_t>(mShowMeshletsFrom),
+						static_cast<int32_t>(mShowMeshletsTo),
+					}),
+				command::dispatch_indirect(mDispatchIndirectCommandBuffer, 0),
+				//command::dispatch(mNumMeshlets * num_instances2,1,1),
+				
+				sync::buffer_memory_barrier(mContourIndices.as_reference(), stage::compute_shader + access::shader_write >> stage::vertex_input + access::memory_read),
+				sync::buffer_memory_barrier(mDrawIndexedIndirectBuffer.as_reference(), stage::compute_shader + access::shader_write >> stage::draw_indirect + access::memory_read),
+
+				command::render_pass(mPipelineDrawEdges->renderpass_reference(), context().main_window()->current_backbuffer_reference(), {
+					command::bind_pipeline(mPipelineDrawEdges.as_reference()),
+					command::bind_descriptors(mPipelineDrawEdges->layout(), mDescriptorCache->get_or_create_descriptor_sets({
+						descriptor_binding(0, 0, as_combined_image_samplers(mImageSamplers, layout::shader_read_only_optimal)),
+						descriptor_binding(0, 1, mViewProjBuffers[inFlightIndex]),
+						descriptor_binding(1, 0, mMaterialBuffer),
+						descriptor_binding(1, 1, mInstanceMatricesBuffer[inFlightIndex]),
+						descriptor_binding(2, 0, mBoneMatricesBuffersAni[inFlightIndex]),
+						descriptor_binding(3, 0, as_uniform_texel_buffer_views(mPositionBuffers)),
+						descriptor_binding(3, 2, as_uniform_texel_buffer_views(mNormalBuffers)),
+						descriptor_binding(3, 3, as_uniform_texel_buffer_views(mTexCoordsBuffers)),
+	#if USE_REDIRECTED_GPU_DATA
+						descriptor_binding(3, 4, avk::as_storage_buffers(mIndicesDataBuffers)),
+	#endif
+						descriptor_binding(3, 5, as_uniform_texel_buffer_views(mBoneIndicesBuffers)),
+						descriptor_binding(3, 6, as_uniform_texel_buffer_views(mBoneWeightsBuffers)),
 						descriptor_binding(4, 0, mMeshletsBuffer)
-					})),
+						})),
+
+					command::push_constants(mPipelineDrawEdges->layout(), vertex_constants{
+						mInstanceMatrices[0],
+						1
+					}),
+
+					// Draw all the contour edges with just one single indirect draw call:
+					command::draw_indexed_indirect(mDrawIndexedIndirectBuffer.as_reference(), mContourIndices.as_reference(), 1,
+						mDrawCalls[0].mPositionsBuffer.as_reference(), mDrawCalls[0].mTexCoordsBuffer.as_reference(), mDrawCalls[0].mNormalsBuffer.as_reference()),
+				}),
+
+				mTimestampPool->write_timestamp(firstQueryIndex + 1, stage::mesh_shader),
+				mPipelineStatsPool->end_query(inFlightIndex)
+				
+				)).into_command_buffer(cmdBfr)
+				.then_submit_to(*mQueue)
+				.waiting_for(imageAvailableSemaphore >> stage::color_attachment_output)
+				.submit();
+		}
+		else {
+			auto& pipeline = mPipelineMode == 1 ? mPipelineDebug : mPipelineExt;
+
+			context().record(command::gather(
+				mPipelineStatsPool->reset(inFlightIndex, 1),
+				mPipelineStatsPool->begin_query(inFlightIndex),
+				mTimestampPool->reset(firstQueryIndex, 2),     // reset the two values relevant for the current frame in flight
+				mTimestampPool->write_timestamp(firstQueryIndex + 0, stage::all_commands), // measure before drawMeshTasks*
+
+				command::custom_commands([](avk::command_buffer_t& cb) { vkCmdSetLineWidth(cb.handle(), 2.f); }),
+
+				// Upload the updated bone matrices into the buffer for the current frame (considering that we have cConcurrentFrames-many concurrent frames):
+				command::one_for_each(mAnimatedModels, [this, inFlightIndex](const std::tuple<animated_model_data, additional_animated_model_data>& tpl) {
+					return mBoneMatricesBuffersAni[inFlightIndex][std::get<animated_model_data>(tpl).mBoneMatricesBufferIndex]->fill(std::get<additional_animated_model_data>(tpl).mBoneMatricesAni.data(), 0);
+					}),
+
+				command::conditional([this]() { return true; },
+					[this, inFlightIndex]() {
+						return mInstanceMatricesBuffer[inFlightIndex]->fill(mInstanceMatrices.data(), 0);
+					}),
+
+				command::render_pass(pipeline->renderpass_reference(), context().main_window()->current_backbuffer_reference(), {
+					command::bind_pipeline(pipeline.as_reference()),
+					command::bind_descriptors(pipeline->layout(), mDescriptorCache->get_or_create_descriptor_sets({
+						descriptor_binding(0, 0, as_combined_image_samplers(mImageSamplers, layout::shader_read_only_optimal)),
+						descriptor_binding(0, 1, mViewProjBuffers[inFlightIndex]),
+						descriptor_binding(1, 0, mMaterialBuffer),
+						descriptor_binding(1, 1, mInstanceMatricesBuffer[inFlightIndex]),
+						descriptor_binding(2, 0, mBoneMatricesBuffersAni[inFlightIndex]),
+						descriptor_binding(3, 0, as_uniform_texel_buffer_views(mPositionBuffers)),
+						descriptor_binding(3, 2, as_uniform_texel_buffer_views(mNormalBuffers)),
+						descriptor_binding(3, 3, as_uniform_texel_buffer_views(mTexCoordsBuffers)),
+	#if USE_REDIRECTED_GPU_DATA
+							descriptor_binding(3, 4, avk::as_storage_buffers(mIndicesDataBuffers)),
+	#endif
+							descriptor_binding(3, 5, as_uniform_texel_buffer_views(mBoneIndicesBuffers)),
+							descriptor_binding(3, 6, as_uniform_texel_buffer_views(mBoneWeightsBuffers)),
+							descriptor_binding(4, 0, mMeshletsBuffer)
+						})),
 
 					command::push_constants(pipeline->layout(), push_constants{
 						mHighlightMeshlets,
@@ -1300,20 +1538,20 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 						static_cast<int32_t>(num_instances2)
 					}),
 
-				// Draw all the meshlets with just one single draw call:
-				//command::draw_mesh_tasks_ext(div_ceil(mNumMeshlets * num_instances2, mTaskInvocationsExt), 1, 1),
-
-				command::draw_mesh_tasks_indirect_ext(mIndirectDrawParamBuffer, 0, 1, sizeof(vk::DrawMeshTasksIndirectCommandEXT)),
-				}),
+					// Draw all the meshlets with just one single draw call:
+					//command::draw_mesh_tasks_ext(div_ceil(mNumMeshlets * num_instances2, mTaskInvocationsExt), 1, 1),
+					command::draw_mesh_tasks_indirect_ext(mDrawIndirectMeshletBuffer, 0, 1, sizeof(vk::DrawMeshTasksIndirectCommandEXT)),
+					}),
 
 				mTimestampPool->write_timestamp(firstQueryIndex + 1, stage::mesh_shader),
 				mPipelineStatsPool->end_query(inFlightIndex)
 			))
-			.into_command_buffer(cmdBfr)
-			.then_submit_to(*mQueue)
-			// Do not start to render before the image has become available:
-			.waiting_for(imageAvailableSemaphore >> stage::color_attachment_output)
-			.submit();
+				.into_command_buffer(cmdBfr)
+				.then_submit_to(*mQueue)
+				// Do not start to render before the image has become available:
+				.waiting_for(imageAvailableSemaphore >> stage::color_attachment_output)
+				.submit();
+		}
 					
 		mainWnd->handle_lifetime(std::move(cmdBfr));
 	}
@@ -1329,11 +1567,13 @@ private: // v== Member variables ==v
 	std::vector<avk::buffer> mViewProjBuffers;
 	avk::buffer mMaterialBuffer;
 	avk::buffer mMeshletsBuffer;
+	avk::buffer mMeshletIndices;
+	avk::buffer mContourIndices;
 	std::array<std::vector<avk::buffer>, cConcurrentFrames> mBoneMatricesBuffersAni;
 	std::vector<avk::image_sampler> mImageSamplers;
 
 	// scene size
-	int32_t grid_size = 1;
+	int32_t grid_size = 0;
 	uint32_t num_instances = grid_size * 2 + 1;
 	uint32_t num_instances2 = num_instances * num_instances;
 	std::vector<glm::mat4> mInstanceMatrices;
@@ -1345,16 +1585,23 @@ private: // v== Member variables ==v
 	std::vector<data_for_draw_call> mDrawCalls;
 	avk::graphics_pipeline mPipelineExt;
 	avk::graphics_pipeline mPipelineDebug;
+	avk::graphics_pipeline mPipelineDrawEdges;
+	avk::compute_pipeline  mComputeCullingPipeline;
+	avk::compute_pipeline  mComputeContourPipeline;
 
 	avk::orbit_camera mOrbitCam;
 	avk::quake_camera mQuakeCam;
 
 	std::vector<vk::DrawMeshTasksIndirectCommandEXT> mIndirectDrawParam;
-	avk::buffer mIndirectDrawParamBuffer;
+	avk::buffer mDrawIndirectMeshletBuffer;
+	avk::buffer mDispatchIndirectCommandBuffer;
+	avk::buffer mDrawIndexedIndirectBuffer;
 
+	uint32_t mNumTotalEdges;
     uint32_t mNumMeshlets;
 	uint32_t mTaskInvocationsExt;
 	uint32_t mTaskInvocationsNv;
+	uint32_t mComputeInvocations;
 
 	std::vector<avk::buffer_view> mPositionBuffers;
 	std::vector<avk::buffer_view> mTexCoordsBuffers;
@@ -1365,13 +1612,13 @@ private: // v== Member variables ==v
 	std::vector<avk::buffer> mIndicesDataBuffers;
 #endif
 
-	bool mBuildMeshlets = false;
+	bool mBuildMeshlets = true;
 	bool mHighlightMeshlets = false;
 	bool mCullMeshlets = false;
 	bool mExtractContours = false;
 	int  mShowMeshletsFrom  = 0;
 	int  mShowMeshletsTo    = 0;
-	bool mUseDebugPipeline = false;
+	int  mPipelineMode      = 0;
 	bool mAnimate = false;
 
 	avk::query_pool mTimestampPool;
@@ -1414,7 +1661,7 @@ int main() // <== Starting point ==
 			avk::application_name("Edge Contour Meshlets"),
 			// Gotta enable the mesh shader extension, ...
 			avk::required_device_extensions(VK_EXT_MESH_SHADER_EXTENSION_NAME),
-			avk::optional_device_extensions(VK_NV_MESH_SHADER_EXTENSION_NAME),
+			//avk::optional_device_extensions(VK_NV_MESH_SHADER_EXTENSION_NAME),
 			// ... and enable the mesh shader features that we need:
 			[](vk::PhysicalDeviceMeshShaderFeaturesEXT& meshShaderFeatures) {
 				meshShaderFeatures.setMeshShader(VK_TRUE);

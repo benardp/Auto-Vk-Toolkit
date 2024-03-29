@@ -707,17 +707,19 @@ namespace avk
 		}
 		else if (pMessageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
 			assert(pCallbackData);
-			if (std::string("Loader Message") == pCallbackData->pMessageIdName) {
-				LOG_VERBOSE___(fmt::format("Debug utils callback with Id[{}|{}] and Message[{}]",
-					pCallbackData->messageIdNumber,
-					pCallbackData->pMessageIdName,
-					pCallbackData->pMessage));
-			}
-			else {
-				LOG_INFO___(fmt::format("Debug utils callback with Id[{}|{}] and Message[{}]",
-					pCallbackData->messageIdNumber,
-					pCallbackData->pMessageIdName,
-					pCallbackData->pMessage));
+			if (pCallbackData->pMessageIdName != NULL) {
+				if (std::string("Loader Message") == pCallbackData->pMessageIdName) {
+					LOG_VERBOSE___(fmt::format("Debug utils callback with Id[{}|{}] and Message[{}]",
+						pCallbackData->messageIdNumber,
+						pCallbackData->pMessageIdName,
+						pCallbackData->pMessage));
+				}
+				else {
+					LOG_INFO___(fmt::format("Debug utils callback with Id[{}|{}] and Message[{}]",
+						pCallbackData->messageIdNumber,
+						pCallbackData->pMessageIdName,
+						pCallbackData->pMessage));
+				}
 			}
 			return VK_FALSE;
 		}

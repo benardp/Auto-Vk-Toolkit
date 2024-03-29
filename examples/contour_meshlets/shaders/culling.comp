@@ -1,0 +1,85 @@
+#version 460
+#extension GL_EXT_shader_16bit_storage       : require
+#extension GL_EXT_shader_8bit_storage        : require
+#extension GL_EXT_nonuniform_qualifier       : require
+#extension GL_GOOGLE_include_directive       : enable
+#extension GL_ARB_shader_draw_parameters     : require
+#extension GL_KHR_shader_subgroup_arithmetic : require
+#extension GL_KHR_shader_subgroup_ballot     : require
+#include "cpu_gpu_shared_config.h"
+#include "glsl_helpers.glsl"
+#include "mesh.glsl"
+
+layout (constant_id = 0) const uint OCCUPANCY_PATCH = 1; // <- Expected to be set to 32 for Nvidia on host side.
+
+layout(local_size_x_id=0,local_size_y=1,local_size_z=1) in;
+
+struct DispatchIndirectCommand {
+    uint    x;
+    uint    y;
+    uint    z;
+};
+
+layout(push_constant) uniform PushConstants {
+	bool mHighlightMeshlets;
+	bool mCull;
+	bool mContours;
+	int  mVisibleMeshletIndexFrom;
+	int  mVisibleMeshletIndexTo;
+	int  mNbInstances;
+} pushConstants;
+
+layout(set = 0, binding = 1) uniform CameraTransform
+{
+	mat4 mViewProjMatrix;
+	vec3 mCameraCenter;
+} ubo;
+
+layout(set = 1, binding = 1) buffer InstanceTransforms
+{
+	mat4 mat[];
+} instanceMatrices;
+
+layout(set = 4, binding = 0) buffer MeshletsBuffer { extended_meshlet meshletsBuffer[]; };
+
+layout(set = 5, binding = 0) writeonly buffer MeshletIndices { uint meshletIndices[ ]; };
+layout(set = 5, binding = 1) writeonly buffer MeshletCount { DispatchIndirectCommand numMeshlets; };
+
+shared uint insertOffset;
+
+void main() {
+	// Calculate and set the meshlet index for this execution:
+	uint groupId      = gl_WorkGroupID.x;
+	uint invocationId = gl_LocalInvocationID.x;
+	uint meshletIndex = (groupId * OCCUPANCY_PATCH) / pushConstants.mNbInstances + invocationId;
+	uint instanceId   = (groupId * OCCUPANCY_PATCH) % pushConstants.mNbInstances ;
+
+	// See if this meshlet shall be rendered, and if so, add it to the array:
+	bool meshletVisible = meshletIndex >= pushConstants.mVisibleMeshletIndexFrom && meshletIndex < pushConstants.mVisibleMeshletIndexTo;
+
+	if(pushConstants.mCull) {
+		mat4 transformationMatrix = instanceMatrices.mat[instanceId] * meshletsBuffer[meshletIndex].mTransformationMatrix;
+		vec3 center = meshletsBuffer[meshletIndex].center;
+		float radius = meshletsBuffer[meshletIndex].radius;
+		vec3 cone_axis = meshletsBuffer[meshletIndex].coneAxis;
+		float cone_cutoff = meshletsBuffer[meshletIndex].coneCutoff;
+
+		meshletVisible = meshletVisible && !coneCull(center, radius, cone_axis, cone_cutoff, vec3(inverse(transformationMatrix) * vec4(ubo.mCameraCenter,1)));
+		//meshletVisible = meshletVisible && !coneCull(vec3(transformationMatrix * vec4(center,1)), radius, mat3(transformationMatrix) * cone_axis, cone_cutoff, ubo.mCameraCenter);
+	}
+	uvec4 meshletVisibleBallot = subgroupBallot(meshletVisible);
+
+	if (invocationId == 0) {
+		uint meshletVisibleCount = subgroupBallotBitCount(meshletVisibleBallot);
+		insertOffset = atomicAdd(numMeshlets.x, meshletVisibleCount);
+	}
+
+	subgroupMemoryBarrierShared();
+
+	if (meshletVisible)
+	{
+		uint insertIndex = insertOffset + subgroupBallotExclusiveBitCount(meshletVisibleBallot);
+		meshletIndices[2*insertIndex] = meshletIndex;
+		meshletIndices[2*insertIndex+1] = instanceId;
+	}
+}
