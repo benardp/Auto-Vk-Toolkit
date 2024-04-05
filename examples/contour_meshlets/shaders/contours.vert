@@ -10,11 +10,6 @@ layout (location = 0) in vec3 inPosition;
 layout (location = 1) in vec2 inTexCoord;
 layout (location = 2) in vec3 inNormal;
 
-layout(push_constant) uniform PushConstants {
-	mat4 mModelMatrix;
-	int mMaterialIndex;
-} pushConstants;
-
 layout(set = 0, binding = 1) uniform CameraTransform
 {
 	mat4 mViewProjMatrix;
@@ -31,9 +26,6 @@ layout(set = 2, binding = 0) buffer BoneMatrices
 	mat4 mat[]; // length of #bones
 } boneMatrices[]; // length of #models
 
-layout(set = 4, binding = 0) buffer MeshletsBuffer { extended_meshlet meshletsBuffer[]; } ;
-
-
 layout (location = 0) out PerVertexData
 {
 	vec3 positionWS;
@@ -44,11 +36,11 @@ layout (location = 0) out PerVertexData
 } v_out;
 
 void main() {
-	vec4 posWS = pushConstants.mModelMatrix * vec4(inPosition.xyz, 1.0);
+	vec4 posWS = instanceMatrices.mat[gl_DrawID] * vec4(inPosition.xyz, 1.0);
 	v_out.positionWS = posWS.xyz;
     v_out.texCoord = inTexCoord;
-	v_out.normalWS = mat3(pushConstants.mModelMatrix) * inNormal;
-	v_out.materialIndex = pushConstants.mMaterialIndex;
+	v_out.normalWS = mat3(instanceMatrices.mat[gl_DrawID]) * inNormal;
+	v_out.materialIndex = 0;
 	v_out.color = vec3(0.5, 0.5, 0.5);
     gl_Position = ubo.mViewProjMatrix * posWS;
 }

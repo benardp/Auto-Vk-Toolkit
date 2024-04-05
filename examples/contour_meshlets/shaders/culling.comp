@@ -48,16 +48,24 @@ layout(set = 5, binding = 1) writeonly buffer MeshletCount { DispatchIndirectCom
 shared uint insertOffset;
 
 void main() {
+	if (gl_GlobalInvocationID.x >= pushConstants.mNbInstances * pushConstants.mVisibleMeshletIndexTo) {
+		return;
+	}
+	insertOffset = 0;
+	subgroupMemoryBarrierShared();
+
 	// Calculate and set the meshlet index for this execution:
 	uint groupId      = gl_WorkGroupID.x;
 	uint invocationId = gl_LocalInvocationID.x;
-	uint meshletIndex = (groupId * OCCUPANCY_PATCH) / pushConstants.mNbInstances + invocationId;
-	uint instanceId   = (groupId * OCCUPANCY_PATCH) % pushConstants.mNbInstances ;
+	//uint meshletIndex = (groupId * OCCUPANCY_PATCH) / pushConstants.mNbInstances + invocationId;
+	// uint instanceId   = (groupId * OCCUPANCY_PATCH) % pushConstants.mNbInstances ;
+	uint instanceId = gl_GlobalInvocationID.x / pushConstants.mVisibleMeshletIndexTo;
+	uint meshletIndex = gl_GlobalInvocationID.x - instanceId * pushConstants.mVisibleMeshletIndexTo;
 
 	// See if this meshlet shall be rendered, and if so, add it to the array:
 	bool meshletVisible = meshletIndex >= pushConstants.mVisibleMeshletIndexFrom && meshletIndex < pushConstants.mVisibleMeshletIndexTo;
 
-	if(pushConstants.mCull) {
+	if (pushConstants.mCull) {
 		mat4 transformationMatrix = instanceMatrices.mat[instanceId] * meshletsBuffer[meshletIndex].mTransformationMatrix;
 		vec3 center = meshletsBuffer[meshletIndex].center;
 		float radius = meshletsBuffer[meshletIndex].radius;
@@ -82,4 +90,8 @@ void main() {
 		meshletIndices[2*insertIndex] = meshletIndex;
 		meshletIndices[2*insertIndex+1] = instanceId;
 	}
+
+//	uint idx = atomicAdd(numMeshlets.x, 1);
+//	meshletIndices[2*idx] = meshletIndex;
+//	meshletIndices[2*idx+1] = instanceId;
 }

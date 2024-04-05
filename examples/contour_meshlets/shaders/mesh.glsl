@@ -6,7 +6,7 @@
 struct meshlet
 {
 	uint    mVertices[64];
-	uint8_t mIndices[504]; // 126 triangles * 4 indices
+	uint8_t mIndices[504]; // 126 edges * 4 indices
 	uint8_t mVertexCount;
 	uint8_t mTriangleCount;
 };

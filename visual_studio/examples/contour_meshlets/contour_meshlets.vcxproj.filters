@@ -124,6 +124,9 @@
     <None Include="..\..\..\examples\contour_meshlets\shaders\contours.vert">
       <Filter>shaders</Filter>
     </None>
+    <None Include="..\..\..\assets\bunny.obj">
+      <Filter>assets</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\..\..\assets\3rd_party\models\dancing_crab\Ambient Occlusion Map from Mesh initialShadingGroup.png">

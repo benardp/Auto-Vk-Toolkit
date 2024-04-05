@@ -23,7 +23,7 @@ layout(push_constant) uniform PushConstants {
 	bool mContours;
 	int  mVisibleMeshletIndexFrom;
 	int  mVisibleMeshletIndexTo;
-	int  mNbInstances;
+	uint  mNbInstances;
 } pushConstants;
 
 layout(set = 0, binding = 1) uniform CameraTransform
@@ -39,18 +39,20 @@ layout(set = 1, binding = 1) buffer InstanceTransforms
 
 layout(set = 4, binding = 0) buffer MeshletsBuffer { extended_meshlet mValues[]; } meshletsBuffer;
 
-shared int numMeshlets;
-
 void main() 
 {
+	if (gl_GlobalInvocationID.x >= pushConstants.mNbInstances * pushConstants.mVisibleMeshletIndexTo) {
+		return;
+	}
+
 	// Calculate and set the meshlet index for this execution:
 	uint groupId      = gl_WorkGroupID.x;
 	uint invocationId = gl_LocalInvocationID.x;
-	uint meshletIndex = (groupId * NUM_TASK_SHADER_INVOCATIONS) / pushConstants.mNbInstances + invocationId;
-	uint instanceId   = (groupId * NUM_TASK_SHADER_INVOCATIONS) % pushConstants.mNbInstances ;
+//	uint meshletIndex = (groupId * NUM_TASK_SHADER_INVOCATIONS) / pushConstants.mNbInstances + invocationId;
+//	uint instanceId   = (groupId * NUM_TASK_SHADER_INVOCATIONS) % pushConstants.mNbInstances ;
+	uint instanceId = gl_GlobalInvocationID.x / pushConstants.mVisibleMeshletIndexTo;
+	uint meshletIndex = gl_GlobalInvocationID.x - instanceId * pushConstants.mVisibleMeshletIndexTo;
 
-	numMeshlets = 0;
-	barrier(); // for numMeshlets
 
 	// See if this meshlet shall be rendered, and if so, add it to the array:
 	bool meshletVisible = meshletIndex >= pushConstants.mVisibleMeshletIndexFrom && meshletIndex < pushConstants.mVisibleMeshletIndexTo;
@@ -66,21 +68,16 @@ void main()
 		//meshletVisible = meshletVisible && !coneCull(vec3(transformationMatrix * vec4(center,1)), radius, mat3(transformationMatrix) * cone_axis, cone_cutoff, ubo.mCameraCenter);
 	}
 
+	uvec4 meshletVisibleBallot = subgroupBallot(meshletVisible);
+
 	if (meshletVisible)
 	{
-		uint insertIndex = atomicAdd(numMeshlets, 1);
+		uint insertIndex = subgroupBallotExclusiveBitCount(meshletVisibleBallot);
 		meshletIndices[2*insertIndex] = meshletIndex;
 		meshletIndices[2*insertIndex+1] = instanceId;
 	}
 
-//	uint insertIndex = subgroupExclusiveAdd(uint(meshletVisible));
-//	meshletIndices[insertIndex] = meshletIndex;		
-//
-//	// Find out how many meshlets been added to the array by the other invocations in this subgroup:
-//	uvec4 voteResult  = subgroupBallot(meshletVisible);
-//	uint  numMeshlets = subgroupBallotBitCount(voteResult);
-
-	barrier(); // for numMeshlets
+	uint  numMeshlets = subgroupBallotBitCount(meshletVisibleBallot);
 
 	// With this number at hand, spawn the same amount of mesh shader GROUPS from this task shader:
 	// I.e., in total, we spawn (numMeshlets * NUM_MESH_SHADER_INVOCATIONS * 1 * 1) invocations.
