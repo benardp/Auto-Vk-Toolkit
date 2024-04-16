@@ -16,9 +16,23 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\examples\contour_meshlets\source\contour_meshlets.cpp" />
+    <ClCompile Include="..\..\..\examples\contour_meshlets\source\metrics_gui.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\examples\contour_meshlets\shaders\cpu_gpu_shared_config.h" />
+    <ClInclude Include="..\..\..\examples\contour_meshlets\source\CLI11.hpp" />
+    <ClInclude Include="..\..\..\examples\contour_meshlets\source\metrics_gui.h" />
+    <None Include="..\..\..\assets\meshcountours-models\comp-egsr\Chr_Tuba.o.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\comp-egsr\Chr_Tuba.^.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\comp-egsr\MESH_Armadillo.^.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\comp-egsr\MESH_bun_zipper.g.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\comp-egsr\MESH_bun_zipper.o.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\comp-egsr\MESH_bun_zipper.p.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\comp-egsr\MESH_bun_zipper.^.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\comp-egsr\MESH_Env_RomanBath.o.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\comp-egsr\MESH_Env_RomanBath.^.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\comp-egsr\MESH_Env_Vigilant.o.cmcp" />
+    <None Include="..\..\..\assets\meshcountours-models\comp-egsr\MESH_Env_Vigilant.^.cmcp" />
     <None Include="..\..\..\assets\meshcountours-models\ubislurm\Chr_Pigman.cmcr" />
     <None Include="..\..\..\assets\meshcountours-models\ubislurm\Chr_Pigman.G.cmcp" />
     <None Include="..\..\..\assets\meshcountours-models\ubislurm\Chr_Tuba.cmcr" />
@@ -93,6 +107,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\assets\bunny.obj">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\assets\3rd_party\fonts\JetBrainsMono-2.304\fonts\ttf\JetBrainsMono-Regular.ttf">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

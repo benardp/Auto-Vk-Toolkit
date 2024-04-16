@@ -1,5 +1,7 @@
 #include "auto_vk_toolkit.hpp"
+#include "metrics_gui.h"
 #include "imgui.h"
+#include "cli11.hpp"
 
 #include "configure_and_compose.hpp"
 #include "imgui_manager.hpp"
@@ -238,18 +240,19 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		SceneData* sceneData = CMCInternal_GetSceneData();
 		//char* filepath = (char*)"assets/MESH_dragon_vrip.cmcr";
 		//char* filepath = (char*) "assets/MESH_Armadillo.cmcr";
-		char* filepath = (char*)"assets/MESH_bun_zipper.cmcr";
+		//char* filepath = (char*)"assets/MESH_bun_zipper.cmcr";
 		//char* filepath = (char*)"assets/MESH_Env_RomanBath.cmcr";
-		//char* filepath = (char*)"assets/MESH_Env_SpaceStationNoDebris.cmcr";
-		//char* filepath = (char*)"assets/MESH_Env_BookFantasy.cmcr";
 		//char* filepath = (char*)"assets/MESH_Env_Vigilant.cmcr";
+		//char* filepath = (char*)"assets/MESH_Env_SpaceStationNoDebris.cmcr";
 		//char* filepath = (char*)"assets/Chr_Pigman.cmcr";
-		//char* filepath = (char*)"assets/Chr_Tuba.cmcr";
+		// char* filepath = (char*)"assets/Chr_Tuba.cmcr";
 		//char* filepath = (char*)"assets/GawainFull.cmcr";
+		char* filepath = (char*)mFilePath.c_str();
 		MeshletData* mData = CMCInternal_LoadNewMeshletDataFromDisk(filepath);
-		ProxyMesh* pMesh = CMCInternal_LoadProxyMeshFromBasePath(mData, (mData->proxyMeshes + LODMETHOD_GPU_MESHSHADER_REDUCEDSPHERE), LODMETHOD_GPU_MESHSHADER_REDUCEDSPHERE, filepath);
-
-
+		// ProxyMesh* pMesh = CMCInternal_LoadProxyMeshFromBasePath(mData, (mData->proxyMeshes + LODMETHOD_PATCHFUSION_GPU_GROUPSEP_AABOX_S4), LODMETHOD_PATCHFUSION_GPU_GROUPSEP_AABOX_S4, mFilePath.c_str());
+		//ProxyMesh* pMesh = CMCInternal_LoadProxyMeshFromBasePath(mData, (mData->proxyMeshes + LODMETHOD_GPU_MESHSHADER_REDUCEDSPHERE), LODMETHOD_GPU_MESHSHADER_REDUCEDSPHERE, filepath);
+		ProxyMesh* pMesh = CMCInternal_LoadProxyMeshFromBasePath(mData, (mData->proxyMeshes + mLODMethods), mLODMethods, filepath);
+		
 
 		auto model = avk::model_t::load_from_file("assets/bunny.obj", aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_PreTransformVertices);
 		loadedModels.push_back(std::move(model));
@@ -1027,27 +1030,27 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::indirect_buffer_meta::create_from_data(mIndirectDrawMeshParam));
 		auto emptyCommand2 = mDrawIndirectMeshletBuffer->fill(mIndirectDrawMeshParam.data(), 0);
 
-		mDispatchIndirectCommandBuffer = avk::context().create_buffer(
-			avk::memory_usage::host_coherent, {},
-			avk::indirect_buffer_meta::create_from_size(sizeof(vk::DispatchIndirectCommand)),
-			avk::storage_buffer_meta::create_from_size(sizeof(vk::DispatchIndirectCommand)));
-
 		mDrawIndexedIndirectCommands.resize(num_instances2, vk::DrawIndexedIndirectCommand({ 0, 1, 0, 0, 0 }));
 		for (int i = 0; i < mDrawIndexedIndirectCommands.size(); ++i) {
 			mDrawIndexedIndirectCommands[i].firstIndex = mNumTotalEdges * 2 * i;
 		}
-
-		mDrawIndexedIndirectBuffer = avk::context().create_buffer(
-			avk::memory_usage::host_coherent, {},
-			avk::indirect_buffer_meta::create_from_num_elements_for_draw_indexed_indirect(num_instances2),
-			avk::storage_buffer_meta::create_from_data(mDrawIndexedIndirectCommands));
-
 		vk::DispatchIndirectCommand dispatchCommand = { 0, 1, 1 };
 
-		avk::context().record_and_submit_with_fence({
-			mDispatchIndirectCommandBuffer->fill(&dispatchCommand, 0),
-			mDrawIndexedIndirectBuffer->fill(mDrawIndexedIndirectCommands.data(), 0)
-			}, * mQueue)->wait_until_signalled();
+		for (size_t cfi = 0; cfi < cConcurrentFrames; ++cfi) {
+			mDispatchIndirectCommandBuffer[cfi] = avk::context().create_buffer(
+				avk::memory_usage::host_coherent, {},
+				avk::indirect_buffer_meta::create_from_size(sizeof(vk::DispatchIndirectCommand)),
+				avk::storage_buffer_meta::create_from_size(sizeof(vk::DispatchIndirectCommand)));
+
+			mDrawIndexedIndirectBuffer[cfi] = avk::context().create_buffer(
+				avk::memory_usage::host_coherent, {},
+				avk::indirect_buffer_meta::create_from_num_elements_for_draw_indexed_indirect(num_instances2),
+				avk::storage_buffer_meta::create_from_data(mDrawIndexedIndirectCommands));
+			avk::context().record_and_submit_with_fence({
+				mDispatchIndirectCommandBuffer[cfi]->fill(&dispatchCommand, 0),
+				mDrawIndexedIndirectBuffer[cfi]->fill(mDrawIndexedIndirectCommands.data(), 0)
+				}, *mQueue)->wait_until_signalled();
+		}
 
 		// Create our graphics mesh pipeline with the required configuration:
 		auto createGraphicsMeshPipeline = [this](auto taskShader, auto meshShader, uint32_t taskInvocations, uint32_t meshInvocations) {
@@ -1116,7 +1119,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::descriptor_binding(1, 1, mInstanceMatricesBuffer[0]),
 			avk::descriptor_binding(4, 0, mMeshletsBuffer),
 			avk::descriptor_binding(5, 0, mMeshletIndices),
-			avk::descriptor_binding(5, 1, mDispatchIndirectCommandBuffer->as_storage_buffer())
+			avk::descriptor_binding(5, 1, mDispatchIndirectCommandBuffer[0]->as_storage_buffer())
 		);
 		mUpdater->on(avk::shader_files_changed_event(mComputeCullingPipeline.as_reference())).update(mComputeCullingPipeline);
 
@@ -1140,7 +1143,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::descriptor_binding(4, 0, mMeshletsBuffer),
 			avk::descriptor_binding(5, 0, mMeshletIndices),
 			avk::descriptor_binding(6, 0, mContourIndices->as_storage_buffer()),
-			avk::descriptor_binding(6, 1, mDrawIndexedIndirectBuffer->as_storage_buffer())
+			avk::descriptor_binding(6, 1, mDrawIndexedIndirectBuffer[0]->as_storage_buffer())
 		);
 		mUpdater->on(avk::shader_files_changed_event(mComputeContourPipeline.as_reference())).update(mComputeContourPipeline);
 
@@ -1197,6 +1200,13 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		avk::current_composition()->add_element(mQuakeCam);
 		mQuakeCam.disable();
 
+		// Profiling
+		frameTimeMetric.mSelected = true;
+		frameTimePlot.mShowAverage = true;
+		frameTimePlot.mShowLegendAverage = true;
+		frameTimePlot.mShowLegendColor = false;
+		frameTimePlot.AddMetric(&frameTimeMetric);
+
 		auto imguiManager = avk::current_composition()->element_by_type<avk::imgui_manager>();
 		if (nullptr != imguiManager) {
 			imguiManager->add_callback([
@@ -1209,56 +1219,95 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				lastFrameDurationMs = 0.0,
 				lastDrawMeshTasksDurationMs = 0.0
 			]() mutable {
-				ImGui::Begin("Info & Settings");
-				ImGui::SetWindowPos(ImVec2(1.0f, 1.0f), ImGuiCond_FirstUseEver);
-				ImGui::Text("%.3f ms/frame", 1000.0f / ImGui::GetIO().Framerate);
-				ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
-				ImGui::Separator();
-				/*ImGui::TextColored(ImVec4(.5f, .3f, .4f, 1.f), "Timestamp Period: %.3f ns", timestampPeriod);
-				lastFrameDurationMs = glm::mix(lastFrameDurationMs, mLastFrameDuration * 1e-6 * timestampPeriod, 0.05);
-				lastDrawMeshTasksDurationMs = glm::mix(lastDrawMeshTasksDurationMs, mLastDrawMeshTasksDuration * 1e-6 * timestampPeriod, 0.05);
-				ImGui::TextColored(ImVec4(.8f, .1f, .6f, 1.f), "Frame time (timer queries): %.3lf ms", lastFrameDurationMs);
-				ImGui::TextColored(ImVec4(.8f, .1f, .6f, 1.f), "drawMeshTasks took        : %.3lf ms", lastDrawMeshTasksDurationMs);*/
-				ImGui::Text("Fragment shader : %llu", mPipelineStats[0]);
-				ImGui::Text("Task shader     : %llu", mPipelineStats[1]);
-				ImGui::Text("Mesh shader     : %llu", mPipelineStats[2]);
-				
-				ImGui::Separator();
-				bool quakeCamEnabled = mQuakeCam.is_enabled();
-				if (ImGui::Checkbox("Enable Quake Camera", &quakeCamEnabled)) {
-					if (quakeCamEnabled) { // => should be enabled
-						mQuakeCam.set_matrix(mOrbitCam.matrix());
-						mQuakeCam.enable();
-						mOrbitCam.disable();
-					}
-				}
-				if (quakeCamEnabled) {
-					ImGui::TextColored(ImVec4(0.f, .6f, .8f, 1.f), "[F1] to exit Quake Camera navigation.");
-					if (avk::input().key_pressed(avk::key_code::f1)) {
-						mOrbitCam.set_matrix(mQuakeCam.matrix());
-						mOrbitCam.enable();
-						mQuakeCam.disable();
-					}
-				}
-				if (imguiManager->begin_wanting_to_occupy_mouse() && mOrbitCam.is_enabled()) {
-					mOrbitCam.disable();
-				}
-				if (imguiManager->end_wanting_to_occupy_mouse() && !mQuakeCam.is_enabled()) {
-					mOrbitCam.enable();
-				}
-				ImGui::Separator();
+				// Update metrics values
+				frameTimeMetric.AddNewValue(1.f / ImGui::GetIO().Framerate);
+				frameTimePlot.UpdateAxes();
 
-				ImGui::Separator();
-				ImGui::Combo("Pipeline", &mPipelineMode, "Mesh\0Debug\0Compute\0");
-				ImGui::Separator();
+				// Create a ImGui window to display the metrics in.
+				ImGui::Begin("Info");
+				
+				/*if (ImGui::TreeNode("Plot options"))
+				{
+					int plotRowCount = (int)frameTimePlot.mPlotRowCount;
+					int vbarMinWidth = (int)frameTimePlot.mVBarMinWidth;
+					int vbarGapWidth = (int)frameTimePlot.mVBarGapWidth;
+					ImGui::SliderFloat(
+						"mBarRounding##1",
+						&frameTimePlot.mBarRounding,
+						0.f,
+						0.5f * ImGui::GetTextLineHeight(),
+						"%.1f");
+					ImGui::SliderFloat("mRangeDampening##1", &frameTimePlot.mRangeDampening, 0.f, 1.f, "%.2f");
+					ImGui::SliderInt("mPlotRowCount##1", &plotRowCount, 1, 10);
+					ImGui::SliderInt("mVBarMinWidth##1", &vbarMinWidth, 1, 20);
+					ImGui::SliderInt("mVBarGapWidth##1", &vbarGapWidth, 0, 10);
+					ImGui::Checkbox("mShowAverage##1", &frameTimePlot.mShowAverage);
+					ImGui::Checkbox("mShowOnlyIfSelected##1", &frameTimePlot.mShowOnlyIfSelected);
+					ImGui::Checkbox("mShowLegendDesc##1", &frameTimePlot.mShowLegendDesc);
+					ImGui::Checkbox("mShowLegendColor##1", &frameTimePlot.mShowLegendColor);
+					ImGui::Checkbox("mShowLegendUnits##1", &frameTimePlot.mShowLegendUnits);
+					ImGui::Checkbox("mShowLegendAverage##1", &frameTimePlot.mShowLegendAverage);
+					ImGui::Checkbox("mShowLegendMin##1", &frameTimePlot.mShowLegendMin);
+					ImGui::Checkbox("mShowLegendMax##1", &frameTimePlot.mShowLegendMax);
+					ImGui::Checkbox("mBarGraph##1", &frameTimePlot.mBarGraph);
+					ImGui::Spacing();
+					frameTimePlot.mPlotRowCount = (uint32_t)plotRowCount;
+					frameTimePlot.mVBarMinWidth = (uint32_t)vbarMinWidth;
+					frameTimePlot.mVBarGapWidth = (uint32_t)vbarGapWidth;
+					ImGui::TreePop();
+				}*/
+				frameTimePlot.DrawList();
+				frameTimePlot.DrawHistory();
+				
+				//ImGui::SetWindowPos(ImVec2(1.0f, 1.0f), ImGuiCond_FirstUseEver);
+				//ImGui::Text("%.3f ms/frame", 1000.0f / ImGui::GetIO().Framerate);
+				//ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
+				//ImGui::Separator();
+				//ImGui::TextColored(ImVec4(.5f, .3f, .4f, 1.f), "Timestamp Period: %.3f ns", timestampPeriod);
+				//lastFrameDurationMs = glm::mix(lastFrameDurationMs, mLastFrameDuration * 1e-6 * timestampPeriod, 0.05);
+				//lastDrawMeshTasksDurationMs = glm::mix(lastDrawMeshTasksDurationMs, mLastDrawMeshTasksDuration * 1e-6 * timestampPeriod, 0.05);
+				//ImGui::TextColored(ImVec4(.8f, .1f, .6f, 1.f), "Frame time (timer queries): %.3lf ms", lastFrameDurationMs);
+				//ImGui::TextColored(ImVec4(.8f, .1f, .6f, 1.f), "drawMeshTasks took        : %.3lf ms", lastDrawMeshTasksDurationMs);*/
+				//ImGui::Text("Fragment shader : %llu", mPipelineStats[0]);
+				//ImGui::Text("Task shader     : %llu", mPipelineStats[1]);
+				//ImGui::Text("Mesh shader     : %llu", mPipelineStats[2]);
+				
+				//ImGui::Separator();
+				//bool quakeCamEnabled = mQuakeCam.is_enabled();
+				//if (ImGui::Checkbox("Enable Quake Camera", &quakeCamEnabled)) {
+				//	if (quakeCamEnabled) { // => should be enabled
+				//		mQuakeCam.set_matrix(mOrbitCam.matrix());
+				//		mQuakeCam.enable();
+				//		mOrbitCam.disable();
+				//	}
+				//}
+				//if (quakeCamEnabled) {
+				//	ImGui::TextColored(ImVec4(0.f, .6f, .8f, 1.f), "[F1] to exit Quake Camera navigation.");
+				//	if (avk::input().key_pressed(avk::key_code::f1)) {
+				//		mOrbitCam.set_matrix(mQuakeCam.matrix());
+				//		mOrbitCam.enable();
+				//		mQuakeCam.disable();
+				//	}
+				//}
+				//if (imguiManager->begin_wanting_to_occupy_mouse() && mOrbitCam.is_enabled()) {
+				//	mOrbitCam.disable();
+				//}
+				//if (imguiManager->end_wanting_to_occupy_mouse() && !mQuakeCam.is_enabled()) {
+				//	mOrbitCam.enable();
+				//}
+				//ImGui::Separator();
+
+				//ImGui::Separator();
+				//ImGui::Combo("", &mPipelineMode, "Compute\0Task/Mesh\0Debug\0");
+				//ImGui::Separator();
 
 				// Select the range of meshlets to be rendered:
-				ImGui::Checkbox("Highlight meshlets", &mHighlightMeshlets);
-				ImGui::Checkbox("Cull meshlets", &mCullMeshlets);
-				ImGui::Checkbox("Extract contours", &mExtractContours);
-				ImGui::Text("Select meshlets to be rendered:");
-				ImGui::DragIntRange2("Visible range", &mShowMeshletsFrom, &mShowMeshletsTo, 1, 0, static_cast<int>(mNumMeshlets));
-				ImGui::Checkbox("Animate", &mAnimate);
+				//ImGui::Checkbox("Highlight patches", &mHighlightMeshlets);
+				//ImGui::Checkbox("Cull patches", &mCullMeshlets);
+				//ImGui::Checkbox("Extract contours", &mExtractContours);
+				//ImGui::Text("Select meshlets to be rendered:");
+				//ImGui::DragIntRange2("Visible range", &mShowMeshletsFrom, &mShowMeshletsTo, 1, 0, static_cast<int>(mNumMeshlets));
+				//ImGui::Checkbox("Animate", &mAnimate);
 
 				ImGui::End();
 			});
@@ -1293,6 +1342,20 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			// activate contour extraction
 			mExtractContours = !mExtractContours;
 		}
+		if (avk::input().key_pressed(avk::key_code::a)) {
+			// activate animation
+			mAnimate = !mAnimate;
+		}
+		if (avk::input().key_pressed(avk::key_code::h)) {
+			// activate highlight
+			mHighlightMeshlets = !mHighlightMeshlets;
+		}
+		if (avk::input().key_pressed(avk::key_code::up)) {
+			mPipelineMode = mPipelineMode == 0 ? 1 : mPipelineMode - 1;
+		}
+		if (avk::input().key_pressed(avk::key_code::down)) {
+			mPipelineMode = (mPipelineMode + 1) % 3;
+		}
 	}
 
 	void render() override
@@ -1323,9 +1386,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		glm::vec3 sceneCenter = glm::vec3(mSceneBBox.center().x(), mSceneBBox.center().y(), mSceneBBox.center().z()); //glm::vec3(0, 0, 0); 
 		if (mAnimate) {
 			mTime = avk::time().absolute_time_dp();
-			if (mZoom > 50) mGrow = false;
-			if (mZoom < 1.5) mGrow = true;
-			float speed = 2.f * std::exp((mZoom - 1.5f) / 50.f);
+			if (mZoom > 25) mGrow = false;
+			if (mZoom < 2.f) mGrow = true;
+			float speed = 2.f * std::exp((mZoom - 2.f) / 25.f);
 			mZoom = mGrow ? mZoom + avk::time().delta_time() * speed : mZoom - avk::time().delta_time() * speed;
 			mOrbitCam.set_translation(sceneCenter + glm::vec3(0.0f, mZoom * sceneDiag, 0.0f));
 			//mOrbitCam.look_at(sceneCenter);
@@ -1374,9 +1437,14 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			mPipelineStats = mPipelineStatsPool->get_results<uint64_t, 3>(inFlightIndex, 1, vk::QueryResultFlagBits::e64);
 		}
 
-		if (mPipelineMode == 2) { // Compute pipeline
+		if (mPipelineMode == 0) { // Compute pipeline
 
 			vk::DispatchIndirectCommand dispatchCommand = { 0, 1, 1 };
+
+			//avk::context().record_and_submit_with_fence({
+			//	mDispatchIndirectCommandBuffer[inFlightIndex]->fill(&dispatchCommand, 0),
+			//	mDrawIndexedIndirectBuffer[inFlightIndex]->fill(mDrawIndexedIndirectCommands.data(), 0)
+			//				}, *mQueue)->wait_until_signalled();
 		
 			avk::context().record(command::gather(
 				mPipelineStatsPool->reset(inFlightIndex, 1),
@@ -1396,11 +1464,11 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 						return mInstanceMatricesBuffer[inFlightIndex]->fill(mInstanceMatrices.data(), 0);
 					}),
 
-				mDispatchIndirectCommandBuffer->fill(&dispatchCommand, 0),
-				mDrawIndexedIndirectBuffer->fill(mDrawIndexedIndirectCommands.data(), 0),
+				mDispatchIndirectCommandBuffer[inFlightIndex]->fill(&dispatchCommand, 0),
+				mDrawIndexedIndirectBuffer[inFlightIndex]->fill(mDrawIndexedIndirectCommands.data(), 0),
 
-				sync::buffer_memory_barrier(mDispatchIndirectCommandBuffer.as_reference(), stage::auto_stage + access::auto_access >> stage::none + access::none),
-				sync::buffer_memory_barrier(mDrawIndexedIndirectBuffer.as_reference(), stage::auto_stage + access::auto_access >> stage::none + access::none),
+				sync::buffer_memory_barrier(mDispatchIndirectCommandBuffer[inFlightIndex].as_reference(), stage::auto_stage + access::auto_access >> stage::none + access::none),
+				sync::buffer_memory_barrier(mDrawIndexedIndirectBuffer[inFlightIndex].as_reference(), stage::auto_stage + access::auto_access >> stage::none + access::none),
 
 				command::bind_pipeline(mComputeCullingPipeline.as_reference()),
 				command::bind_descriptors(mComputeCullingPipeline->layout(), mDescriptorCache->get_or_create_descriptor_sets({
@@ -1408,7 +1476,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 						descriptor_binding(1, 1, mInstanceMatricesBuffer[inFlightIndex]),
 						descriptor_binding(4, 0, mMeshletsBuffer),
 						descriptor_binding(5, 0, mMeshletIndices),
-						descriptor_binding(5, 1, mDispatchIndirectCommandBuffer->as_storage_buffer())
+						descriptor_binding(5, 1, mDispatchIndirectCommandBuffer[inFlightIndex]->as_storage_buffer())
 					})),
 				command::push_constants(mComputeCullingPipeline->layout(), push_constants{
 						mHighlightMeshlets,
@@ -1422,7 +1490,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 				//sync::buffer_memory_barrier(mDispatchIndirectCommandBuffer.as_reference(), stage::compute_shader + access::shader_write >> stage::draw_indirect + access::memory_read),
 				//sync::buffer_memory_barrier(mMeshletIndices.as_reference(), stage::compute_shader + access::shader_write >> stage::compute_shader + access::shader_read),
-				sync::buffer_memory_barrier(mDispatchIndirectCommandBuffer.as_reference(), avk::stage::auto_stage >> avk::stage::auto_stage, avk::access::auto_access >> avk::access::auto_access),
+				sync::buffer_memory_barrier(mDispatchIndirectCommandBuffer[inFlightIndex].as_reference(), avk::stage::auto_stage >> avk::stage::auto_stage, avk::access::auto_access >> avk::access::auto_access),
 				sync::buffer_memory_barrier(mMeshletIndices.as_reference(), avk::stage::auto_stage >> avk::stage::auto_stage, avk::access::auto_access >> avk::access::auto_access),
 
 				command::bind_pipeline(mComputeContourPipeline.as_reference()),
@@ -1442,7 +1510,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 						descriptor_binding(4, 0, mMeshletsBuffer),
 						descriptor_binding(5, 0, mMeshletIndices),
 						descriptor_binding(6, 0, mContourIndices->as_storage_buffer()),
-						descriptor_binding(6, 1, mDrawIndexedIndirectBuffer->as_storage_buffer()),
+						descriptor_binding(6, 1, mDrawIndexedIndirectBuffer[inFlightIndex]->as_storage_buffer()),
 				})),
 				command::push_constants(mComputeCullingPipeline->layout(), push_constants{
 						mHighlightMeshlets,
@@ -1452,13 +1520,13 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 						static_cast<int32_t>(mShowMeshletsTo),
 						static_cast<int32_t>(mNumTotalEdges),
 					}),
-				command::dispatch_indirect(mDispatchIndirectCommandBuffer, 0),
+				command::dispatch_indirect(mDispatchIndirectCommandBuffer[inFlightIndex], 0),
 				//command::dispatch(mNumMeshlets * num_instances2,1,1),
 				
 				//sync::buffer_memory_barrier(mContourIndices.as_reference(), stage::compute_shader + access::shader_write >> stage::vertex_input + access::memory_read),
 				//sync::buffer_memory_barrier(mDrawIndexedIndirectBuffer.as_reference(), stage::compute_shader + access::shader_write >> stage::draw_indirect + access::memory_read),
 				sync::buffer_memory_barrier(mContourIndices.as_reference(), avk::stage::auto_stage >> avk::stage::auto_stage, avk::access::auto_access >> avk::access::auto_access),
-				sync::buffer_memory_barrier(mDrawIndexedIndirectBuffer.as_reference(), avk::stage::auto_stage >> avk::stage::auto_stage, avk::access::auto_access >> avk::access::auto_access),
+				sync::buffer_memory_barrier(mDrawIndexedIndirectBuffer[inFlightIndex].as_reference(), avk::stage::auto_stage >> avk::stage::auto_stage, avk::access::auto_access >> avk::access::auto_access),
 
 				command::render_pass(mPipelineDrawEdges->renderpass_reference(), context().main_window()->current_backbuffer_reference(), {
 					command::bind_pipeline(mPipelineDrawEdges.as_reference()),
@@ -1479,7 +1547,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 						})),
 
 					// Draw all the contour edges with just one single indirect draw call:
-					command::draw_indexed_indirect(mDrawIndexedIndirectBuffer.as_reference(), mContourIndices.as_reference(), num_instances2,
+					command::draw_indexed_indirect(mDrawIndexedIndirectBuffer[inFlightIndex].as_reference(), mContourIndices.as_reference(), num_instances2,
 						vk::DeviceSize{ 0 }, static_cast<uint32_t>(sizeof(vk::DrawIndexedIndirectCommand)),
 						mDrawCalls[0].mPositionsBuffer.as_reference(), mDrawCalls[0].mTexCoordsBuffer.as_reference(), mDrawCalls[0].mNormalsBuffer.as_reference()),
 				}),
@@ -1493,7 +1561,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				.submit();
 		}
 		else {
-			auto& pipeline = mPipelineMode == 1 ? mPipelineDebug : mPipelineExt;
+			auto& pipeline = mPipelineMode == 2 ? mPipelineDebug : mPipelineExt;
 
 			context().record(command::gather(
 				mPipelineStatsPool->reset(inFlightIndex, 1),
@@ -1559,6 +1627,16 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mainWnd->handle_lifetime(std::move(cmdBfr));
 	}
 
+	void setFilePath(const std::string& filePath) { mFilePath = filePath; }
+	
+	void setLODMethod(LODMethods mode) { mLODMethods = mode; }
+
+	void setGridSize(int32_t size) { 
+		grid_size = size; 
+		num_instances = grid_size * 2 + 1;
+		num_instances2 = num_instances * num_instances;
+	}
+
 private: // v== Member variables ==v
 
 	avk::queue* mQueue;
@@ -1576,7 +1654,7 @@ private: // v== Member variables ==v
 	std::vector<avk::image_sampler> mImageSamplers;
 
 	// scene size
-	int32_t grid_size = 1;
+	int32_t grid_size = 4;
 	uint32_t num_instances = grid_size * 2 + 1;
 	uint32_t num_instances2 = num_instances * num_instances;
 	std::vector<glm::mat4> mInstanceMatrices;
@@ -1597,9 +1675,9 @@ private: // v== Member variables ==v
 
 	std::vector<vk::DrawMeshTasksIndirectCommandEXT> mIndirectDrawMeshParam;
 	avk::buffer mDrawIndirectMeshletBuffer;
-	avk::buffer mDispatchIndirectCommandBuffer;
+	std::array <avk::buffer, cConcurrentFrames> mDispatchIndirectCommandBuffer;
 	std::vector<vk::DrawIndexedIndirectCommand> mDrawIndexedIndirectCommands;
-	avk::buffer mDrawIndexedIndirectBuffer;
+	std::array <avk::buffer, cConcurrentFrames> mDrawIndexedIndirectBuffer;
 
 	uint32_t mNumTotalEdges;
     uint32_t mNumMeshlets;
@@ -1616,13 +1694,16 @@ private: // v== Member variables ==v
 	std::vector<avk::buffer> mIndicesDataBuffers;
 #endif
 
+	MetricsGuiMetric frameTimeMetric{ "Frame time", "s", MetricsGuiMetric::USE_SI_UNIT_PREFIX };
+	MetricsGuiPlot frameTimePlot;
+
 	bool mBuildMeshlets = false;
 	bool mHighlightMeshlets = false;
 	bool mCullMeshlets = false;
 	bool mExtractContours = false;
 	int  mShowMeshletsFrom  = 0;
 	int  mShowMeshletsTo    = 0;
-	int  mPipelineMode      = 2;
+	int  mPipelineMode      = 0;
 	bool mAnimate = false;
 
 	avk::query_pool mTimestampPool;
@@ -1633,10 +1714,37 @@ private: // v== Member variables ==v
 	avk::query_pool mPipelineStatsPool;
 	std::array<uint64_t, 3> mPipelineStats;
 
+	std::string mFilePath;
+	LODMethods mLODMethods;
+
 }; // skinned_meshlets_app
 
-int main() // <== Starting point ==
+int main(int argc, char* argv[])
 {
+	CLI::App app{ "Edge Contour Meshlets" };
+
+	// Set CLI options
+	std::string inputFile;
+	int         LODMethod = 0;
+	int         grid_size = 0;
+
+	app.add_option("-i, --input", inputFile, "CMCR file to load")
+		->required()
+		->check(CLI::ExistingFile)
+		->check([](const std::string& str) -> std::string {
+		std::string extension = ".cmcr";
+		std::string input = CLI::detail::to_lower(str);
+		if (input.compare(input.length() - extension.length(), extension.length(), extension))
+		{
+			return "Not a CMCR input file";
+		}
+		return std::string();
+			});
+	app.add_option("-m, --mode", LODMethod, "LOD method");
+	app.add_option("-g, --grid", grid_size, "grid size");
+
+	CLI11_PARSE(app, argc, argv);
+
 	int result = EXIT_FAILURE;
 	try {
 		// Create a window and open it
@@ -1657,8 +1765,20 @@ int main() // <== Starting point ==
 
 		// Create an instance of our main avk::element which contains all the functionality:
 		auto app = skinned_meshlets_app(singleQueue);
+		app.setFilePath(inputFile);
+		app.setGridSize(grid_size);
+		app.setLODMethod(LODMethods(LODMethod));
+
 		// Create another element for drawing the UI with ImGui
-		auto ui = avk::imgui_manager(singleQueue);
+		auto imguiconfig = [](float uiScale) {
+			auto& style = ImGui::GetStyle();
+			style = ImGuiStyle(); // reset to default style (for non-color settings, like rounded corners)
+			ImGui::StyleColorsDark(); // change color theme
+			style.ScaleAllSizes(uiScale); // and scale
+			};
+
+		auto ui = avk::imgui_manager(singleQueue, "imgui_manager", {}, imguiconfig);
+		ui.set_custom_font("assets/JetBrainsMono-Regular.ttf");
 
 		// Compile all the configuration parameters and the invokees into a "composition":
 		auto composition = configure_and_compose(
