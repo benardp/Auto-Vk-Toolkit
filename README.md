@@ -1,14 +1,14 @@
-# Auto-Vk-Toolkit v0.99
+# Auto-Vk-Toolkit v1.0.1
 
-*Auto-Vk-Toolkit* (formerly "Gears-Vk") is a framework for the Vulkan graphics API, implemented in modern C++.
+*Auto-Vk-Toolkit* is a framework for the Vulkan graphics API, implemented in modern C++.
 It aims to hit the sweet spot between programmer-convenience and efficiency while still supporting full Vulkan functionality.
 To achieve this goal, this framework uses [*Auto-Vk*](https://github.com/cg-tuwien/Auto-Vk), a convenience and productivity layer atop [Vulkan-Hpp](https://github.com/KhronosGroup/Vulkan-Hpp).
 
-_Auto-Vk-Toolkit_ has been successfully used for rapid prototyping, research (e.g., [Conservative Meshlet Bounds for Robust Culling of Skinned Meshes](https://www.cg.tuwien.ac.at/research/publications/2021/unterguggenberger-2021-msh/)), and teaching (e.g., [Algorithms for Real-Time Rendering](https://www.cg.tuwien.ac.at/courses/ARTR)). 
+_Auto-Vk-Toolkit_ has been successfully used for rapid prototyping, research (e.g., [Conservative Meshlet Bounds for Robust Culling of Skinned Meshes](https://www.cg.tuwien.ac.at/research/publications/2021/unterguggenberger-2021-msh/), [Fast Rendering of Parametric Objects on Modern GPUs](https://www.cg.tuwien.ac.at/research/publications/2024/unterguggenberger-2024-fropo/)), and teaching (e.g., [Algorithms for Real-Time Rendering](https://www.cg.tuwien.ac.at/courses/ARTR)). 
 
-![Some screenshots of applications implemented with Auto-Vk-Toolkit](./docs/images/auto-vk-toolkit-teaser.png)
+![Some screenshots of applications implemented with Auto-Vk-Toolkit](./docs/images/auto-vk-toolkit-teaser.jpg)
 
-This image showcases some work that has been developed using _Auto-Vk-Toolkit_ (from left to right): Usage in an advanced graphics course for teaching modern low-level GPU concepts; post-processing graphics effects; division of meshes into meshlets and rendering them with fine-grained view-frustum and backface culling in task and mesh shaders; ray traced shadows and reflections using the hardware-accelerated real-time ray tracing device extensions. 
+This image showcases some work that has been developed using _Auto-Vk-Toolkit_ (from left to right): Usage in an advanced graphics course for teaching modern low-level GPU concepts; visualization of 19,600 spherical harmonics glyphs from a brain scan; division of meshes into meshlets and rendering them with fine-grained view-frustum and backface culling in task and mesh shaders; ray traced shadows and reflections using the hardware-accelerated real-time ray tracing device extensions; rendering of 358k parametrically-defined fiber curves in real time.
 
 Some of its highlight-features (besides the awesome features of [_Auto-Vk_](https://github.com/cg-tuwien/Auto-Vk)) include:
 - Window management and input handling through [GLFW](https://www.glfw.org/).
@@ -54,7 +54,7 @@ A preconfigured project setup is provided for Visual Studio 2022 on Windows.
 ### Requirements
 * Windows 10 or 11
 * Visual Studio 2022 with a Windows 10 or 11 SDK installed (For detailed information about project setup and resource management please refer to [`visual_studio/README.md`](./visual_studio/README.md).)
-* A [Vulkan 1.3 SDK from LunarG](https://vulkan.lunarg.com/sdk/home), optimally Vulkan SDK 1.3.250.0 or newer.
+* A [Vulkan 1.3 or 1.4 SDK from LunarG](https://vulkan.lunarg.com/sdk/home)
 
 ### Setup and build instructions
 * Clone or download this repository
@@ -180,6 +180,7 @@ There are some documentation pages containing further information:
 - [Meshlets](./docs/meshlets.md)-specfic functionality for dividing geometry into small clusters and using them for rendering in graphics mesh pipelines (those with task and mesh shaders)
 - [Serializer](./docs/serializer.md) functionality for storing and loading resources to/from file, such as 3D models, images, or custom structs
 - [Automatic Resource-Updates](./docs/updater.md) through the `avk::updater` class, enabling shwapchain recreation and shader hot reloading
+- [Dynamic Rendering](./docs/dynamic_rendering.md): How to use dynamic rendering in Auto-Vk-Toolkit
 
 # FAQs, Known Issues, Troubleshooting
 

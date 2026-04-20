@@ -158,7 +158,8 @@ public:
 						[&]() {
 							// A queue family ownership transfer consists of two distinct parts (as per specification 7.7.4. Queue Family Ownership Transfer): 
 							//  2. Acquire exclusive ownership for the destination queue family
-							return sync::buffer_memory_barrier(vertexBuffer, stage::none + access::none >> stage::auto_stage + access::auto_access)
+
+							return sync::buffer_memory_barrier(vertexBuffer, stage::copy + access::transfer_write >> stage::auto_stage + access::auto_access)
 								.with_queue_family_ownership_transfer(mGraphicsQueue->family_index(), mTransferQueues[j]->family_index());
 						}
 					),
@@ -269,7 +270,7 @@ int main() // <== Starting point ==
 		auto composition = configure_and_compose(
 			avk::application_name("Auto-Vk-Toolkit Example: Multiple Queues"),
 			[](avk::validation_layers& config) {
-				//config.enable_feature(vk::ValidationFeatureEnableEXT::eSynchronizationValidation);
+				config.enable_feature(vk::ValidationFeatureEnableEXT::eSynchronizationValidation);
 			},
 			// Pass windows:
 			mainWnd,

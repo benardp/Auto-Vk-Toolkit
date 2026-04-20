@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.8.34309.116
+VisualStudioVersion = 17.7.34221.43
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "auto_vk_toolkit", "auto_vk_toolkit\auto_vk_toolkit.vcxproj", "{602F842F-50C1-466D-8696-1707937D8AB9}"
 EndProject
@@ -46,15 +46,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "multiple_queues", "examples
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "present_from_compute", "examples\present_from_compute\present_from_compute.vcxproj", "{14DC267E-090F-442E-82FB-31A16759ECDC}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "contour_meshlets", "examples\contour_meshlets\contour_meshlets.vcxproj", "{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}"
-	ProjectSection(ProjectDependencies) = postProject
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72} = {2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F} = {5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}
-	EndProjectSection
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "meshoptimizer", "external\meshoptimizer\meshoptimizer.vcxproj", "{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "meshcontours", "external\meshcontours\meshcontours.vcxproj", "{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "dynamic_rendering", "examples\dynamic_rendering\dynamic_rendering.vcxproj", "{C9892273-E97F-49F5-8A0D-96278284EAFF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -384,72 +376,12 @@ Global
 		{14DC267E-090F-442E-82FB-31A16759ECDC}.Publish_Vulkan|x86.Build.0 = Publish_Vulkan|x64
 		{14DC267E-090F-442E-82FB-31A16759ECDC}.Release_Vulkan|x64.ActiveCfg = Release_Vulkan|x64
 		{14DC267E-090F-442E-82FB-31A16759ECDC}.Release_Vulkan|x64.Build.0 = Release_Vulkan|x64
-		{14DC267E-090F-442E-82FB-31A16759ECDC}.Release_Vulkan|x86.ActiveCfg = Release_Vulkan|x64
-		{14DC267E-090F-442E-82FB-31A16759ECDC}.Release_Vulkan|x86.Build.0 = Release_Vulkan|x64
-		{14DC267E-090F-442E-82FB-31A16759ECDC}.Release|x64.ActiveCfg = Release_Vulkan|x64
-		{14DC267E-090F-442E-82FB-31A16759ECDC}.Release|x64.Build.0 = Release_Vulkan|x64
-		{14DC267E-090F-442E-82FB-31A16759ECDC}.Release|x86.ActiveCfg = Release_Vulkan|x64
-		{14DC267E-090F-442E-82FB-31A16759ECDC}.Release|x86.Build.0 = Release_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Debug_Vulkan|x64.ActiveCfg = Debug_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Debug_Vulkan|x64.Build.0 = Debug_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Debug_Vulkan|x86.ActiveCfg = Debug_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Debug_Vulkan|x86.Build.0 = Debug_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Debug|x64.ActiveCfg = Debug_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Debug|x64.Build.0 = Debug_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Debug|x86.ActiveCfg = Debug_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Debug|x86.Build.0 = Debug_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Publish_Vulkan|x64.ActiveCfg = Publish_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Publish_Vulkan|x64.Build.0 = Publish_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Publish_Vulkan|x86.ActiveCfg = Publish_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Publish_Vulkan|x86.Build.0 = Publish_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Release_Vulkan|x64.ActiveCfg = Release_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Release_Vulkan|x64.Build.0 = Release_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Release_Vulkan|x86.ActiveCfg = Release_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Release_Vulkan|x86.Build.0 = Release_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Release|x64.ActiveCfg = Release_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Release|x64.Build.0 = Release_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Release|x86.ActiveCfg = Release_Vulkan|x64
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF}.Release|x86.Build.0 = Release_Vulkan|x64
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Debug_Vulkan|x64.ActiveCfg = Debug|x64
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Debug_Vulkan|x64.Build.0 = Debug|x64
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Debug_Vulkan|x86.ActiveCfg = Debug|Win32
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Debug_Vulkan|x86.Build.0 = Debug|Win32
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Debug|x64.ActiveCfg = Debug|x64
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Debug|x64.Build.0 = Debug|x64
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Debug|x86.ActiveCfg = Debug|Win32
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Debug|x86.Build.0 = Debug|Win32
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Publish_Vulkan|x64.ActiveCfg = Debug|x64
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Publish_Vulkan|x64.Build.0 = Debug|x64
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Publish_Vulkan|x86.ActiveCfg = Debug|Win32
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Publish_Vulkan|x86.Build.0 = Debug|Win32
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Release_Vulkan|x64.ActiveCfg = Release|x64
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Release_Vulkan|x64.Build.0 = Release|x64
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Release_Vulkan|x86.ActiveCfg = Release|Win32
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Release_Vulkan|x86.Build.0 = Release|Win32
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Release|x64.ActiveCfg = Release|x64
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Release|x64.Build.0 = Release|x64
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Release|x86.ActiveCfg = Release|Win32
-		{2A9E6D79-0EDF-40B4-AA1F-66EA70AC5F72}.Release|x86.Build.0 = Release|Win32
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Debug_Vulkan|x64.ActiveCfg = Debug|x64
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Debug_Vulkan|x64.Build.0 = Debug|x64
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Debug_Vulkan|x86.ActiveCfg = Debug|Win32
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Debug_Vulkan|x86.Build.0 = Debug|Win32
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Debug|x64.ActiveCfg = Debug|x64
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Debug|x64.Build.0 = Debug|x64
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Debug|x86.ActiveCfg = Debug|Win32
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Debug|x86.Build.0 = Debug|Win32
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Publish_Vulkan|x64.ActiveCfg = Debug|x64
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Publish_Vulkan|x64.Build.0 = Debug|x64
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Publish_Vulkan|x86.ActiveCfg = Debug|Win32
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Publish_Vulkan|x86.Build.0 = Debug|Win32
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Release_Vulkan|x64.ActiveCfg = Release|x64
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Release_Vulkan|x64.Build.0 = Release|x64
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Release_Vulkan|x86.ActiveCfg = Release|Win32
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Release_Vulkan|x86.Build.0 = Release|Win32
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Release|x64.ActiveCfg = Release|x64
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Release|x64.Build.0 = Release|x64
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Release|x86.ActiveCfg = Release|Win32
-		{5B297BEB-3D8C-426D-B18C-AAFEDCBDF62F}.Release|x86.Build.0 = Release|Win32
+		{C9892273-E97F-49F5-8A0D-96278284EAFF}.Debug_Vulkan|x64.ActiveCfg = Debug_Vulkan|x64
+		{C9892273-E97F-49F5-8A0D-96278284EAFF}.Debug_Vulkan|x64.Build.0 = Debug_Vulkan|x64
+		{C9892273-E97F-49F5-8A0D-96278284EAFF}.Publish_Vulkan|x64.ActiveCfg = Publish_Vulkan|x64
+		{C9892273-E97F-49F5-8A0D-96278284EAFF}.Publish_Vulkan|x64.Build.0 = Publish_Vulkan|x64
+		{C9892273-E97F-49F5-8A0D-96278284EAFF}.Release_Vulkan|x64.ActiveCfg = Release_Vulkan|x64
+		{C9892273-E97F-49F5-8A0D-96278284EAFF}.Release_Vulkan|x64.Build.0 = Release_Vulkan|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -475,7 +407,7 @@ Global
 		{295E18F0-C25C-4864-9D61-4A7F6EE13EFB} = {B883882B-129A-4528-86E3-68638929D9EC}
 		{3CD62905-610C-4EA1-A378-E1DFE6A6871C} = {08A10CAA-9B1B-41DB-9EB5-8547AC3077EA}
 		{14DC267E-090F-442E-82FB-31A16759ECDC} = {E796A880-48FF-48FF-A7F0-A3A522223061}
-		{B2385FF0-700A-46F8-90A7-3682D2AAC7CF} = {B883882B-129A-4528-86E3-68638929D9EC}
+		{C9892273-E97F-49F5-8A0D-96278284EAFF} = {08A10CAA-9B1B-41DB-9EB5-8547AC3077EA}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A8961D43-F08D-46E3-B3BB-29BA8AA39C3E}
